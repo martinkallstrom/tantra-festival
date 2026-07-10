@@ -100,6 +100,22 @@ sqlite3 -json data/leaders.db \
 Configuration lives in `wrangler.toml`: the KV namespace binding (`SCHEDULE`),
 the hourly cron trigger, and the `public/` static assets directory.
 
+## Contributing
+
+Contributions are welcome — `main` is protected, so all changes land through pull
+requests.
+
+1. Fork (or branch, if you have access) and make your change
+2. Check the parser still behaves if you touched it: `node test/parse-test.mjs <dir-with-csvs>`
+3. Open a PR with a short note on what and why
+
+Good first territory: parser edge cases (the sheet's layout keeps evolving),
+print-mode refinements, accessibility, and translations. **Schedule content
+itself** is not editable here — it comes from the organizers' Google Sheet.
+**Corrections to leader bios or links** are also welcome as PRs against
+`src/leaders.json`, or just email martin@kindship.ai — the underlying research
+database is maintained outside the repo.
+
 ## Credits
 
 Schedule content and workshop data belong to [Ängsbacka](https://www.angsbacka.com)
