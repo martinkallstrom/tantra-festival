@@ -116,8 +116,10 @@ itself** is not editable here — it comes from the organizers' Google Sheet.
 `src/leaders.json`, or just email martin@kindship.ai — the underlying research
 database is maintained outside the repo.
 
-## Credits
+## License & credits
 
-Schedule content and workshop data belong to [Ängsbacka](https://www.angsbacka.com)
-and the festival's workshop leaders. Built by Martin Källström
-(martin@kindship.ai) with [Claude Code](https://claude.com/claude-code).
+Code is [MIT licensed](LICENSE). Schedule content and workshop data belong to
+[Ängsbacka](https://www.angsbacka.com) and the festival's workshop leaders; leader
+portraits and bios remain the property of their respective owners. Built by
+Martin Källström (martin@kindship.ai) with
+[Claude Code](https://claude.com/claude-code).
