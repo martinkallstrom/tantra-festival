@@ -1,0 +1,15 @@
+name = "tantra-festival"
+main = "src/worker.js"
+account_id = "129f968637a65720067f29f9cf177a0e"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[assets]
+directory = "public"
+
+[triggers]
+crons = ["0 * * * *"]
+
+[[kv_namespaces]]
+binding = "SCHEDULE"
+id = "073c0742f8464ed9a3f47910e7710fa3"
