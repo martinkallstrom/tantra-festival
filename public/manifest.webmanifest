@@ -1,0 +1,15 @@
+{
+  "name": "Ängsbacka Tantra Festival",
+  "short_name": "Tantra",
+  "description": "Schedule for the Ängsbacka Tantra Festival, July 14–19 2026. Works offline.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#2a1019",
+  "theme_color": "#2a1019",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

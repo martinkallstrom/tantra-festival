@@ -1,0 +1,9 @@
+{
+  "name": "tantra-festival",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/ci-test.mjs",
+    "deploy": "wrangler deploy"
+  }
+}

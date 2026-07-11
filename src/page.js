@@ -25,6 +25,10 @@ export function renderPage(data, origin = 'https://tantra-festival.kindship-ai.w
 <meta name="twitter:description" content="The full festival schedule: six days of workshops, ceremonies and celebration at Ängsbacka.">
 <meta name="twitter:image" content="${origin}/og.jpg">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌹</text></svg>">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&family=Karla:wght@400;500;700&family=Spline+Sans+Mono:wght@500&display=swap" rel="stylesheet">
@@ -231,6 +235,22 @@ section.day.active{display:block}
 html.favview .controlcard,
 html.favview main>section.day{display:none!important}
 html.favview #favsec{display:block}
+.daybtn.nowpill{border-color:var(--candle);color:var(--candle)}
+.daybtn.nowpill[aria-pressed="true"]{background:var(--candle);border-color:var(--candle);color:#3a2306}
+.stale{
+  margin:14px 0 4px;padding:11px 14px;border-radius:12px;
+  background:var(--dusk);border:1px solid var(--candle);
+  color:var(--candle);font-size:13px;font-weight:700;
+  box-shadow:0 4px 18px rgba(20,6,12,.4);
+}
+.nownote{
+  display:none;color:var(--smoke);text-align:center;margin:20px 0;padding:20px 24px;
+  font-style:italic;font-family:Fraunces,serif;font-size:17px;
+  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
+}
+html.nowempty .nownote{display:block}
+html.nowempty main>section.day{display:none!important}
+.clash{color:var(--candle);font-size:11px;font-weight:700;letter-spacing:.05em;margin-top:7px}
 .favempty{text-align:center;padding:70px 22px 40px;color:var(--smoke)}
 .favempty .bigheart{font-size:66px;line-height:1;color:var(--faint);margin-bottom:6px}
 .favempty p{margin:4px 0;font-size:17px;color:var(--linen)}
@@ -272,7 +292,7 @@ html.favview #favsec{display:block}
 .ev.banner-row.ceremony{border-left-color:var(--candle)}
 .ev.banner-row.ceremony:hover{border-left-color:var(--candle)}
 .ev.banner-row.ceremony h3{color:var(--candle)}
-.favbar{display:flex;justify-content:flex-end;padding:14px 0 0}
+.favbar{display:flex;justify-content:flex-end;gap:8px;padding:14px 0 0}
 .favtoggle{
   flex:none;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
   background:var(--dusk);color:var(--smoke);font-size:11.5px;font-weight:700;
@@ -467,6 +487,7 @@ html.print .heart{display:none!important}
 /* printing always outputs the full schedule, even from the favorites view */
 html.print main>section.day{display:block!important}
 html.print #favsec{display:none!important}
+html.print .stale,html.print .nownote{display:none!important}
 html.print footer{color:#999;font-size:8px;padding-bottom:8px}
 html.print footer>div{background:none;border:none}
 @media print{
@@ -505,7 +526,7 @@ const VENUE_COLORS = {
   'GARDEN TENT':'#aac36a','DAKINI TEMPLE (CAFÉ ATTIC)':'#e08fd8','OTHER':'#c9ad96'
 };
 const WARN_CODES = new Set(['NUDITY','POSSIBLY NUDITY','BOLD']);
-const state = { day:0, venue:'', q:'', code:'', w:'', l:'', view:'' };  // day: -1 = all days; view: '' schedule | 'favorites'
+const state = { day:0, venue:'', q:'', code:'', w:'', l:'', view:'', now:false };  // day: -1 = all days; view: '' schedule | 'favorites'
 let booted = false; // suppress URL writes while restoring initial state
 
 // --- URL <-> state (every filter combination is linkable) ---
@@ -521,6 +542,7 @@ function buildURL(){
     return '?'+p.toString();
   }
   p.set('day', dayKey(state.day));
+  if (state.now) p.set('now','1');
   if (state.venue) p.set('venue', state.venue);
   if (state.code) p.set('code', state.code);
   if (state.q) p.set('q', state.q);
@@ -528,6 +550,12 @@ function buildURL(){
   if (state.l) p.set('l', state.l);
   return '?'+p.toString();
 }
+const todayIdx = () => {
+  const today = new Date().toDateString();
+  return DATA.days.findIndex(d=>{
+    const t = new Date(d.dateLabel); return !isNaN(t)&&t.toDateString()===today;
+  });
+};
 function updateURL(){
   if (!booted) return;
   history.replaceState(history.state,'',buildURL());
@@ -583,6 +611,7 @@ DATA.days.forEach((d,i)=>{
 });
 function setDay(i){
   exitFavview();
+  exitNow();
   state.day = i;
   localStorage.setItem('tantra-day', i);
   [...daysNav.children].forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.day===i)));
@@ -592,7 +621,25 @@ function setDay(i){
   window.scrollTo({top:0});
 }
 
-// --- favorites (personal, private, localStorage) ---
+// --- "Now & next": ongoing + starting within 90 minutes, today only ---
+const NOW_WINDOW = 90;
+function exitNow(){
+  if (!state.now) return;
+  state.now = false;
+  document.documentElement.classList.remove('nowempty');
+  if (typeof nowPill !== 'undefined') nowPill.setAttribute('aria-pressed','false');
+}
+function enterNow(){
+  if (state.now) return;
+  const idx = todayIdx();
+  if (idx >= 0) setDay(idx); else setDay(state.day);
+  state.now = true;
+  nowPill.setAttribute('aria-pressed','true');
+  document.documentElement.classList.toggle('nowempty', idx < 0);
+  applyFilters();
+  updateURL();
+  window.scrollTo({top:0});
+}
 const FAV_KEY = 'tantra-favs';
 const favs = (function(){
   try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); }
@@ -601,6 +648,22 @@ const favs = (function(){
 function saveFavs(){
   try { localStorage.setItem(FAV_KEY, JSON.stringify([...favs])); } catch {}
 }
+// Survive schedule edits: if a favorite's id no longer exists (a workshop's
+// time moved), re-match it by day + title slug, then by title slug alone.
+(function(){
+  let changed = false;
+  [...favs].forEach(id=>{
+    if (detailIndex.has(id)) return;
+    const parts = id.split('-');
+    if (parts.length < 3) return;
+    const dkey = parts[0], tslug = parts.slice(2).join('-');
+    const keys = [...detailIndex.keys()];
+    const hit = keys.find(k=>k.startsWith(dkey+'-') && k.endsWith('-'+tslug)) ||
+                keys.find(k=>k.endsWith('-'+tslug));
+    if (hit && !favs.has(hit)){ favs.delete(id); favs.add(hit); changed = true; }
+  });
+  if (changed) saveFavs();
+})();
 const EXTRAS_KEY = 'tantra-fav-extras';
 let showExtras = (function(){ try { return localStorage.getItem(EXTRAS_KEY) !== '0'; } catch { return true; } })();
 function applyExtras(){ favsec.classList.toggle('hide-extras', !showExtras); }
@@ -641,6 +704,14 @@ function updateFavPill(){
   favPill.textContent = favs.size ? '♥ '+favs.size : '♥';
 }
 updateFavPill();
+
+// "Now" pill sits next to the heart, before the day pills
+const nowPill = h('button','daybtn nowpill','Now');
+nowPill.dataset.day = 'now';
+nowPill.setAttribute('aria-pressed','false');
+nowPill.setAttribute('aria-label','Happening now and starting soon');
+nowPill.addEventListener('click',()=>{ state.now ? setDay(todayIdx()>=0?todayIdx():state.day) : enterNow(); });
+daysNav.insertBefore(nowPill, favPill.nextSibling);
 
 // favorites view — clean, no filters, reuses the full event cards
 const favsec = h('section','favsec');
@@ -696,6 +767,10 @@ function renderFavorites(){
     return;
   }
   const bar = h('div','favbar');
+  const ics = h('button','favtoggle','ADD TO CALENDAR');
+  ics.title = 'Download your picks as an .ics calendar file';
+  ics.addEventListener('click', downloadIcs);
+  bar.appendChild(ics);
   const tg = h('button','favtoggle');
   const setLabel = ()=>{
     tg.setAttribute('aria-pressed', String(showExtras));
@@ -734,14 +809,81 @@ function renderFavorites(){
     });
     wrap.appendChild(head);
 
+    // flag hearted workshops whose times overlap
+    const picked = day.events.filter(e=>!e.banner && favs.has(e._id));
+    const span = e=>{ let x=e.end==null?e.start+60:e.end; if (x<=e.start) x+=1440; return [e.start,x]; };
+    const clashes = new Set();
+    picked.forEach((a,ai)=>picked.forEach((b,bi)=>{
+      if (ai>=bi || a.start<0 || b.start<0) return;
+      const [as,ae]=span(a), [bs,be]=span(b);
+      if (as<be && bs<ae){ clashes.add(a._id); clashes.add(b._id); }
+    }));
+
     const bodyc = h('div','favbody');
     day.events.forEach(ev=>{
       if (ev.banner) bodyc.appendChild(renderFavBanner(ev));
-      else if (favs.has(ev._id)) bodyc.appendChild(renderEvent(ev));
+      else if (favs.has(ev._id)){
+        const el = renderEvent(ev);
+        if (clashes.has(ev._id))
+          el.querySelector('.body').appendChild(h('div','clash','⚠ OVERLAPS ANOTHER PICK'));
+        bodyc.appendChild(el);
+      }
     });
     wrap.appendChild(bodyc);
     favsec.appendChild(wrap);
   });
+}
+
+// --- favorites → .ics calendar export (times are CEST, UTC+2) ---
+const MONTHS = {january:0,february:1,march:2,april:3,may:4,june:5,
+  july:6,august:7,september:8,october:9,november:10,december:11};
+function parseDayDate(day){
+  const m = day.dateLabel.match(/([A-Za-z]+) (\\d{1,2}), (\\d{4})/);
+  if (!m || MONTHS[m[1].toLowerCase()]==null) return null;
+  return { y:+m[3], mo:MONTHS[m[1].toLowerCase()], d:+m[2] };
+}
+function icsStamp(pd, mins){
+  return new Date(Date.UTC(pd.y, pd.mo, pd.d, 0, mins-120))
+    .toISOString().replace(/[-:]/g,'').replace(/\\.\\d{3}Z$/,'Z');
+}
+function icsEsc(s){
+  const BS = String.fromCharCode(92), NL = String.fromCharCode(10);
+  return String(s).split(BS).join(BS+BS).split(';').join(BS+';')
+    .split(',').join(BS+',').split(NL).join(BS+'n');
+}
+function downloadIcs(){
+  const CRLF = String.fromCharCode(13)+String.fromCharCode(10);
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0',
+    'PRODID:-//tantra-festival//schedule//EN','CALSCALE:GREGORIAN'];
+  DATA.days.forEach(day=>{
+    const pd = parseDayDate(day);
+    if (!pd) return;
+    day.events.forEach(ev=>{
+      if (ev.banner || !favs.has(ev._id) || ev.allDay || ev.start<0 || ev.start>=1440) return;
+      let end = ev.end==null ? ev.start+90 : ev.end;
+      if (end <= ev.start) end += 1440;
+      const loc = (ev.note && locNote(ev)) ? ev.note : shortVenue(ev.venue);
+      const desc = [ev.subtitle, ev.desc,
+        ev.facilitators.length ? 'With '+ev.facilitators.join(' & ') : '']
+        .filter(Boolean).join(' — ');
+      L.push('BEGIN:VEVENT',
+        'UID:'+ev._id+'@tantra-festival',
+        'DTSTAMP:'+icsStamp(pd, ev.start),
+        'DTSTART:'+icsStamp(pd, ev.start),
+        'DTEND:'+icsStamp(pd, end),
+        'SUMMARY:'+icsEsc(ev.title),
+        'LOCATION:'+icsEsc(loc),
+        'DESCRIPTION:'+icsEsc(desc),
+        'END:VEVENT');
+    });
+  });
+  L.push('END:VCALENDAR');
+  const blob = new Blob([L.join(CRLF)], {type:'text/calendar;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tantra-favorites.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
 }
 
 // --- venue chips ---
@@ -815,6 +957,16 @@ DATA.days.forEach((day,i)=>{
   main.appendChild(sec);
 });
 main.appendChild(favsec);
+const nownote = h('div','nownote','The festival has not started yet — the Now view lights up July 14–19.');
+main.insertBefore(nownote, main.firstChild);
+
+// warn when the cached schedule is old (cron broken or device long offline)
+if (DATA.updatedAt && Date.now() - new Date(DATA.updatedAt).getTime() > 24*3600*1000){
+  main.insertBefore(h('div','stale',
+    '⚠ Schedule last fetched '+new Date(DATA.updatedAt)
+      .toLocaleString('sv-SE',{dateStyle:'medium',timeStyle:'short'})+' — it may be out of date.'),
+    main.firstChild);
+}
 
 function renderBanner(ev){
   const big = /CEREMONY|GATHERING|❤️/u.test(ev.title);
@@ -1074,6 +1226,8 @@ window.addEventListener('popstate',()=>{
     exitFavview();
     [...daysNav.children].forEach(b=>b.setAttribute('aria-pressed', String(+b.dataset.day===state.day)));
   }
+  if (p.get('now')) { if (!state.now) enterNow(); }
+  else if (state.now) { exitNow(); applyFilters(); }
   const l = p.get('l'), w = p.get('w');
   if (l && leaderIndex.has(l)) openLeader(l,false);
   else if (w && detailIndex.has(w)) openDetail(w,false);
@@ -1083,26 +1237,47 @@ window.addEventListener('popstate',()=>{
 // --- filtering ---
 const searchEl = document.getElementById('search');
 searchEl.addEventListener('input',()=>{ state.q = searchEl.value.trim().toLowerCase(); applyFilters(); updateURL(); });
+function inNowWindow(startAttr, endAttr){
+  const now = new Date();
+  const mins = now.getHours()*60 + now.getMinutes();
+  const s = +startAttr;
+  if (s < 0) return true;            // all-day spaces stay visible
+  if (s >= 1440) return false;       // no parsed time
+  let e = endAttr ? +endAttr : s + NOW_WINDOW;
+  if (e <= s) e += 1440;             // past-midnight sessions
+  return mins < s ? (s - mins) <= NOW_WINDOW : mins < e;
+}
 function applyFilters(){
-  const filtering = state.venue || state.q || state.code;
+  const filtering = state.venue || state.q || state.code || state.now;
   document.querySelectorAll('section.day').forEach(sec=>{
     let visible = 0;
     sec.querySelectorAll('.ev').forEach(ev=>{
       const okV = !state.venue || ev.dataset.venue===state.venue;
       const okQ = !state.q || ev.dataset.text.includes(state.q);
       const okC = !state.code || ev.dataset.codes.split('|').includes(state.code);
-      const show = okV && okQ && okC;
+      const okN = !state.now || inNowWindow(ev.dataset.start, ev.dataset.end);
+      const show = okV && okQ && okC && okN;
       ev.style.display = show?'':'none';
       if (show) visible++;
     });
-    sec.querySelectorAll('.banner').forEach(b=>b.style.display = filtering?'none':'');
+    sec.querySelectorAll('.banner').forEach(b=>{
+      b.style.display = state.now
+        ? (inNowWindow(b.dataset.start, b.dataset.end) && !(state.venue||state.q||state.code) ? '' : 'none')
+        : (filtering ? 'none' : '');
+    });
     if (state.day===-1){
       // All-days view: drop empty days entirely instead of showing a message.
       sec.style.display = (filtering && !visible)?'none':'';
       sec.querySelector('.empty').style.display = 'none';
     } else {
       sec.style.display = '';
-      sec.querySelector('.empty').style.display = (filtering && !visible)?'block':'none';
+      const showEmpty = filtering && !visible &&
+        !document.documentElement.classList.contains('nowempty');
+      sec.querySelector('.empty').style.display = showEmpty?'block':'none';
+      if (state.now && showEmpty) sec.querySelector('.empty').textContent =
+        'Nothing on right now or in the next '+NOW_WINDOW+' minutes — take a stroll.';
+      else sec.querySelector('.empty').textContent =
+        'Nothing matches here — soften your filters.';
     }
   });
 }
@@ -1121,6 +1296,7 @@ function tick(){
         mins>=s && mins < (e>s?e:e+1440));
     });
   });
+  if (state.now) applyFilters(); // slide the Now window forward each minute
 }
 tick(); setInterval(tick, 60000);
 
@@ -1151,6 +1327,7 @@ tick(); setInterval(tick, 60000);
   const q = p.get('q');
   if (q){ searchEl.value = q; state.q = q.trim().toLowerCase(); applyFilters(); }
   if (p.get('view')==='favorites') enterFavorites();
+  else if (p.get('now')) enterNow();
   const w = p.get('w');
   const l = p.get('l');
   if (l && leaderIndex.has(l)) openLeader(l,false);
@@ -1209,6 +1386,13 @@ a.href = ${JSON.stringify('https://docs.google.com/spreadsheets/d/e/2PACX-1vTbrt
 src.appendChild(a);
 src.appendChild(document.createTextNode(' · refreshed hourly'));
 foot.appendChild(src);
+
+// --- offline: install the service worker ---
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
 })();
 </script>
 </body>
