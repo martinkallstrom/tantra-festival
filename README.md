@@ -40,6 +40,15 @@ always have, and the app follows along automatically.
 - **A backdrop worth the festival** — the mural artwork sits fixed behind the
   schedule, and the entire color system (venue ribbons, accents, text) is drawn
   from it.
+- **Works offline** — a service worker caches the whole app, so it keeps working
+  in a field with no signal; add it to your home screen from the browser menu
+  and it behaves like a native app. A banner warns if the cached schedule is
+  more than a day old.
+- **Now & next** — the *Now* pill shows what's running and everything starting
+  within 90 minutes, updating as time passes.
+- **Personal schedule** — heart workshops to build your own program (stored on
+  your device only), see overlap warnings between picks, and export them as an
+  `.ics` file to your calendar.
 
 ## How it works
 
@@ -87,8 +96,9 @@ Google Sheet (pubhtml) ──┐
 ```sh
 npx wrangler dev      # run locally
 npx wrangler deploy   # deploy
+npm test              # parser + render checks against test/fixtures
 
-# check the parser against downloaded CSVs
+# check the parser against freshly downloaded CSVs
 node test/parse-test.mjs <dir-with-csvs>
 
 # regenerate the leader data from the local db
@@ -99,6 +109,11 @@ sqlite3 -json data/leaders.db \
 
 Configuration lives in `wrangler.toml`: the KV namespace binding (`SCHEDULE`),
 the hourly cron trigger, and the `public/` static assets directory.
+
+CI runs `npm test` on every pull request (required to merge) and deploys to
+Cloudflare on merge to `main` when the `CLOUDFLARE_API_TOKEN` repository
+secret is set; without it, the deploy step is skipped with a warning and
+deploys stay manual.
 
 ## Contributing
 
