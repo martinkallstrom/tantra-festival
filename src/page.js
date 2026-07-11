@@ -48,9 +48,7 @@ body{
    also stays put on iOS, where background-attachment:fixed is broken) */
 body::before{
   content:"";position:fixed;inset:0;z-index:-1;
-  background:
-    linear-gradient(180deg,rgba(42,16,25,.78),rgba(42,16,25,.66) 40%,rgba(42,16,25,.84)),
-    url(/bg.jpg) center/cover no-repeat;
+  background:url(/bg.jpg) center/cover no-repeat;
 }
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 :focus-visible{outline:2px solid var(--candle);outline-offset:2px;border-radius:4px}
@@ -58,7 +56,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 /* ---------- header (brand + day pills + print, one sticky block) ---------- */
 header.top{
   position:sticky;top:0;z-index:30;
-  background:rgba(42,16,25,.9);backdrop-filter:blur(10px);
+  background:rgba(42,16,25,.95);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line);
   padding:10px 14px 9px;
   display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
@@ -104,11 +102,16 @@ header.top nav.days{
   background:var(--rose);border-color:var(--rose);color:#38101f;
 }
 
-/* ---------- filters ---------- */
-.filters{padding:14px 16px 2px;max-width:720px;margin:0 auto}
+/* ---------- filters (one card so the section reads over the mural) ---------- */
+.controlcard{
+  max-width:720px;margin:14px auto 4px;padding:12px 14px 10px;
+  background:var(--dusk);border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 6px 24px rgba(20,6,12,.45);
+}
+@media (max-width:752px){.controlcard{margin-left:16px;margin-right:16px}}
 .search{
   width:100%;padding:9px 14px;border-radius:12px;
-  background:var(--dusk);border:1px solid var(--line);color:var(--linen);
+  background:var(--night);border:1px solid var(--line);color:var(--linen);
   font:inherit;font-size:15px;
 }
 .search::placeholder{color:var(--faint)}
@@ -116,13 +119,14 @@ header.top nav.days{
 .vchip{
   flex:none;display:flex;align-items:center;gap:6px;
   padding:5px 11px;border-radius:999px;border:1px solid var(--line);
+  background:var(--night);
   font-size:11.5px;font-weight:700;letter-spacing:.06em;color:var(--smoke);
   white-space:nowrap;
 }
 .vchip .dot{width:8px;height:8px;border-radius:50%;background:var(--vc,var(--smoke))}
 .vchip[aria-pressed="true"]{background:var(--dusk-2);border-color:var(--vc,var(--rose));color:var(--linen)}
-details.legend{max-width:720px;margin:6px auto 0;padding:0 16px;color:var(--smoke);font-size:13px}
-details.legend summary{cursor:pointer;font-weight:700;letter-spacing:.08em;font-size:11px;padding:6px 0;list-style:none}
+details.legend{color:var(--smoke);font-size:13px}
+details.legend summary{cursor:pointer;font-weight:700;letter-spacing:.08em;font-size:11px;padding:6px 0 2px;list-style:none}
 details.legend summary::before{content:"◦ ";color:var(--candle)}
 details.legend[open] summary::before{content:"• "}
 .codefilters{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 2px}
@@ -134,7 +138,11 @@ details.legend dd{color:var(--smoke)}
 main{max-width:720px;margin:0 auto;padding:4px 16px 40px}
 section.day{display:none}
 section.day.active{display:block}
-.dayhead{padding:18px 0 6px}
+.dayhead{
+  margin:16px 0 6px;padding:12px 16px 14px;
+  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 6px 24px rgba(20,6,12,.45);
+}
 .dayhead .date{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--smoke)}
 .dayhead .theme{
   font-family:Fraunces,serif;font-style:italic;font-weight:500;
@@ -152,6 +160,7 @@ section.day.active{display:block}
   display:flex;gap:12px;margin:10px 0;padding:12px 14px 12px 12px;
   background:var(--dusk);border:1px solid var(--line);border-radius:14px;
   border-left:4px solid var(--vc,var(--faint));
+  box-shadow:0 4px 18px rgba(20,6,12,.4);
   cursor:pointer;
 }
 .ev:hover{border-color:var(--faint);border-left-color:var(--vc,var(--faint))}
@@ -219,9 +228,7 @@ section.day.active{display:block}
 .heart.detailcorner.on{color:var(--rose)}
 .detail h2{padding-right:76px}
 .favsec{display:none}
-html.favview .filters,
-html.favview details.legend.controls,
-html.favview .printswitch,
+html.favview .controlcard,
 html.favview main>section.day{display:none!important}
 html.favview #favsec{display:block}
 .favempty{text-align:center;padding:70px 22px 40px;color:var(--smoke)}
@@ -282,12 +289,18 @@ html.favview #favsec{display:block}
   color:var(--smoke);font-size:12px;font-weight:700;letter-spacing:.12em;
 }
 .banner.meal::before,.banner.meal::after{
-  content:"";flex:1;height:1px;background:var(--line);
+  content:"";flex:1;height:1px;background:rgba(59,26,34,.75);
+}
+.banner.meal span{
+  background:var(--rose);border:1px solid var(--rose);border-radius:999px;
+  color:#38101f;
+  padding:5px 14px;box-shadow:0 4px 14px rgba(20,6,12,.4);
 }
 .banner.heart{
   padding:14px 16px;border-radius:14px;
-  background:linear-gradient(120deg,rgba(242,169,59,.2),rgba(229,81,141,.16));
+  background:linear-gradient(120deg,rgba(242,169,59,.2),rgba(229,81,141,.16)) var(--dusk);
   border:1px solid rgba(242,169,59,.5);
+  box-shadow:0 4px 18px rgba(20,6,12,.4);
   color:var(--candle);font-weight:700;font-size:13.5px;letter-spacing:.04em;
 }
 /* ---------- workshop detail overlay ---------- */
@@ -353,7 +366,7 @@ html.favview #favsec{display:block}
   width:92px;height:92px;border-radius:50%;object-fit:cover;flex:none;
   border:2px solid var(--candle);
 }
-.detail .leadhead h2{margin:0 0 2px}
+.detail .leadhead h2{margin:0 0 2px;padding-right:0}
 .detail .leadhead .sub{margin:0;font-size:14px}
 .detail .listhead{
   font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--faint);
@@ -374,11 +387,22 @@ html.print .detailwrap{display:none!important}
 @media print{.detailwrap{display:none!important}}
 
 footer{
-  max-width:720px;margin:0 auto;padding:0 16px 48px;
-  color:var(--faint);font-size:12px;line-height:1.7;text-align:center;
+  max-width:720px;margin:0 auto 48px;padding:12px 16px;
+  color:var(--smoke);font-size:12px;line-height:1.7;text-align:center;
 }
-footer a{color:var(--smoke)}
-.empty{display:none;color:var(--faint);text-align:center;padding:32px 0;font-style:italic;font-family:Fraunces,serif;font-size:17px}
+footer>div{
+  display:inline-block;width:100%;
+  background:rgba(59,26,34,.92);border:1px solid var(--line);
+}
+footer>div:first-child{border-radius:14px 14px 0 0;border-bottom:none;padding-top:8px}
+footer>div:last-child{border-radius:0 0 14px 14px;padding-bottom:8px}
+footer>div:not(:first-child):not(:last-child){border-top:none;border-bottom:none}
+footer a{color:var(--linen)}
+.empty{
+  display:none;color:var(--smoke);text-align:center;margin:20px auto;padding:20px 24px;
+  font-style:italic;font-family:Fraunces,serif;font-size:17px;
+  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
+}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
@@ -393,10 +417,10 @@ html.print header.top{position:static;background:#fff;border-color:#ddd;backdrop
 html.print .brand h1{color:#111;font-size:17px}
 html.print .brand .eyebrow{color:#a2325d;font-size:9px}
 html.print .printswitch{color:#555}
-html.print nav.days,html.print .filters,html.print details.legend.controls{display:none}
+html.print nav.days,html.print .controlcard{display:none}
 html.print main{max-width:none;padding:0 16px 12px}
 html.print section.day{display:block;columns:2;column-gap:18px;column-rule:1px solid #eee;margin-bottom:6px}
-html.print .dayhead{column-span:all;padding:8px 0 2px;border-bottom:1.5px solid #111;margin-bottom:3px;display:flex;align-items:baseline;gap:10px}
+html.print .dayhead{column-span:all;background:none;border:none;box-shadow:none;border-radius:0;padding:8px 0 2px;border-bottom:1.5px solid #111;margin:0 0 3px;display:flex;align-items:baseline;gap:10px}
 html.print .dayhead .date{color:#111;font-size:9.5px;letter-spacing:.1em}
 html.print .dayhead .theme{color:#333;font-size:15px;margin:0}
 html.print .notice{column-span:all;background:none;border:none;border-left:2px solid #ccc;border-radius:0;padding:1px 8px;margin:3px 0;color:#555;font-size:8.5px;line-height:1.35}
@@ -405,6 +429,7 @@ html.print .ev{
   display:flex;gap:6px;background:#fff;border:none;border-bottom:1px solid #eee;
   border-left:2.5px solid var(--vc,#bbb);border-radius:0;
   margin:0;padding:2.5px 0 2.5px 6px;break-inside:avoid;cursor:default;
+  box-shadow:none;
 }
 html.print .ev .time{width:38px;font-size:8px;line-height:1.25;color:#111;flex:none}
 html.print .ev .time .end{font-size:8px;color:#999}
@@ -434,10 +459,15 @@ html.print .banner{margin:3px 0;break-inside:avoid}
 html.print .banner.heart{background:none;border:none;border-radius:0;padding:1px 0;color:#8a6320;font-size:8.5px;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
 html.print .banner.heart::before,html.print .banner.heart::after{content:"";flex:1;height:1px;background:#e6c98d}
 html.print .banner.meal{color:#888;font-size:8px;margin:3px 0}
+html.print .banner.meal span{background:none;border:none;box-shadow:none;padding:0}
 html.print .banner.meal::before,html.print .banner.meal::after{background:#e5e5e5}
 html.print .empty{display:none!important}
 html.print .heart{display:none!important}
+/* printing always outputs the full schedule, even from the favorites view */
+html.print main>section.day{display:block!important}
+html.print #favsec{display:none!important}
 html.print footer{color:#999;font-size:8px;padding-bottom:8px}
+html.print footer>div{background:none;border:none}
 @media print{
   @page{margin:9mm}
   header.top .printswitch{display:none}
@@ -456,11 +486,11 @@ html.print footer{color:#999;font-size:8px;padding-bottom:8px}
   </button>
   <nav class="days" id="days" aria-label="Festival days"></nav>
 </header>
-<div class="filters controls">
+<div class="controlcard controls">
   <input class="search" id="search" type="search" placeholder="Search workshops, facilitators…" aria-label="Search the schedule">
   <div class="venues" id="venues" aria-label="Filter by venue"></div>
+  <details class="legend" id="legend"><summary>WORKSHOP CODES</summary><div class="codefilters" id="codefilters" aria-label="Filter by workshop code"></div><dl></dl></details>
 </div>
-<details class="legend controls" id="legend"><summary>WORKSHOP CODES</summary><div class="codefilters" id="codefilters" aria-label="Filter by workshop code"></div><dl></dl></details>
 <main id="main"></main>
 <div class="detailwrap" id="detailwrap" hidden></div>
 <footer id="foot"></footer>
@@ -788,7 +818,9 @@ main.appendChild(favsec);
 function renderBanner(ev){
   const big = /CEREMONY|GATHERING|❤️/u.test(ev.title);
   const el = h('div','banner '+(big?'heart':'meal'));
-  el.textContent = ev.title.replace(/❤️/gu,'').replace(/\\s+/g,' ').trim() + (big?' ❤':'');
+  const label = ev.title.replace(/❤️/gu,'').replace(/\\s+/g,' ').trim() + (big?' ❤':'');
+  if (big) el.textContent = label;
+  else el.appendChild(h('span',null,label));
   el.dataset.start = ev.start; el.dataset.end = ev.end||'';
   return el;
 }
