@@ -10,8 +10,8 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
       - run: npm test
@@ -29,9 +29,9 @@ jobs:
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
             echo "::warning::CLOUDFLARE_API_TOKEN secret not set — skipping deploy. Add it in repo settings to enable deploy-on-merge."
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.CLOUDFLARE_API_TOKEN != ''
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: env.CLOUDFLARE_API_TOKEN != ''
         with:
           node-version: 24
