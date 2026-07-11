@@ -197,6 +197,93 @@ section.day.active{display:block}
 .ev .desc{color:var(--smoke);font-size:13.5px;margin-top:8px}
 .ev .desc:empty{display:none!important}
 
+/* ---------- favorites (heart) ---------- */
+.heart{
+  background:none;border:none;cursor:pointer;padding:0;
+  color:var(--faint);font-size:20px;line-height:1;
+  -webkit-tap-highlight-color:transparent;
+  transition:color .15s,transform .1s;
+}
+.heart:hover{color:var(--rose)}
+.heart.on{color:var(--rose)}
+.heart:active{transform:scale(1.1)}
+.heart.card{
+  flex:none;align-self:stretch;
+  width:44px;min-width:44px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;color:var(--faint);
+  border-left:1px solid var(--line);
+  margin:-12px -14px -12px 0;border-radius:0 13px 13px 0;
+}
+.heart.card.on{color:var(--rose)}
+.heart.card:active{transform:none}
+.daybtn.favpill{border-color:var(--rose);color:var(--rose)}
+.daybtn.favpill[aria-pressed="true"]{background:var(--rose);border-color:var(--rose);color:#38101f}
+.heart.detailcorner{
+  position:absolute;top:8px;right:48px;
+  width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;color:var(--faint);
+}
+.heart.detailcorner.on{color:var(--rose)}
+.detail h2{padding-right:76px}
+.favsec{display:none}
+html.favview .filters,
+html.favview details.legend.controls,
+html.favview .printswitch,
+html.favview main>section.day{display:none!important}
+html.favview #favsec{display:block}
+.favempty{text-align:center;padding:70px 22px 40px;color:var(--smoke)}
+.favempty .bigheart{font-size:66px;line-height:1;color:var(--faint);margin-bottom:6px}
+.favempty p{margin:4px 0;font-size:17px;color:var(--linen)}
+.favempty .hint{font-size:13.5px;color:var(--smoke);max-width:300px;margin:6px auto 0;line-height:1.5}
+.favday{margin:14px 0 0}
+.favhead{
+  display:flex;align-items:center;gap:12px;width:100%;
+  background:var(--dusk);border:1px solid var(--line);border-radius:12px;
+  cursor:pointer;color:inherit;padding:11px 14px;text-align:left;
+  transition:border-color .15s,background .15s;
+}
+.favhead:hover{border-color:var(--faint);background:var(--dusk-2)}
+.favlabel{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.favlabel .date{flex:none;font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--smoke)}
+.favlabel .theme{
+  font-family:Fraunces,serif;font-style:italic;font-weight:500;
+  font-size:22px;line-height:1.1;color:var(--linen);
+}
+.favcount{flex:none;font-size:12px;font-weight:700;color:var(--rose);letter-spacing:.04em}
+.favhead .chev{
+  flex:none;font-size:18px;line-height:1;color:var(--smoke);
+  width:22px;text-align:center;transition:transform .2s;
+}
+.favday.collapsed .favhead .chev{transform:rotate(-90deg)}
+.favday.collapsed .favhead{opacity:.9}
+.favday.collapsed .favbody{display:none}
+.favbody{padding:2px 0 6px}
+.ev.banner-row{
+  background:var(--dusk-2);border-left:4px solid var(--line);cursor:default;
+}
+.ev.banner-row:hover{border-color:var(--line);border-left-color:var(--line)}
+.ev.banner-row .body{align-self:center}
+.ev.banner-row h3{
+  font-size:12.5px;font-weight:700;letter-spacing:.08em;line-height:1.35;
+  text-transform:uppercase;color:var(--smoke);
+}
+.ev.banner-row .time{color:var(--smoke)}
+.ev.banner-row .time .end{color:var(--faint)}
+.ev.banner-row.ceremony{border-left-color:var(--candle)}
+.ev.banner-row.ceremony:hover{border-left-color:var(--candle)}
+.ev.banner-row.ceremony h3{color:var(--candle)}
+.favbar{display:flex;justify-content:flex-end;padding:14px 0 0}
+.favtoggle{
+  flex:none;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
+  background:none;color:var(--smoke);font-size:11.5px;font-weight:700;
+  letter-spacing:.06em;cursor:pointer;transition:border-color .15s,color .15s;
+}
+.favtoggle[aria-pressed="false"]{color:var(--faint)}
+.favtoggle:hover{border-color:var(--faint)}
+.favsec.hide-extras .banner-row{display:none}
+
 /* ---------- banners ---------- */
 .banner{margin:16px 0;text-align:center}
 .banner.meal{
@@ -238,7 +325,7 @@ section.day.active{display:block}
 }
 .detail .when{
   font:500 13px "Spline Sans Mono",monospace;color:var(--candle);
-  letter-spacing:.04em;padding-right:32px;
+  letter-spacing:.04em;padding-right:80px;
 }
 .detail h2{
   font-family:Fraunces,serif;font-weight:650;font-size:27px;line-height:1.1;
@@ -377,6 +464,7 @@ html.print .banner.meal{color:#888;font-size:8px;margin:3px 0}
 html.print .banner.meal span{background:none;border:none;box-shadow:none;padding:0}
 html.print .banner.meal::before,html.print .banner.meal::after{background:#e5e5e5}
 html.print .empty{display:none!important}
+html.print .heart{display:none!important}
 html.print footer{color:#999;font-size:8px;padding-bottom:8px}
 html.print footer>div{background:none;border:none}
 @media print{
@@ -415,7 +503,7 @@ const VENUE_COLORS = {
   'GARDEN TENT':'#aac36a','DAKINI TEMPLE (CAFÉ ATTIC)':'#e08fd8','OTHER':'#c9ad96'
 };
 const WARN_CODES = new Set(['NUDITY','POSSIBLY NUDITY','BOLD']);
-const state = { day:0, venue:'', q:'', code:'', w:'', l:'' };  // day: -1 = all days
+const state = { day:0, venue:'', q:'', code:'', w:'', l:'', view:'' };  // day: -1 = all days; view: '' schedule | 'favorites'
 let booted = false; // suppress URL writes while restoring initial state
 
 // --- URL <-> state (every filter combination is linkable) ---
@@ -424,6 +512,12 @@ const dayFromKey = k => k==='all' ? -1 :
   DATA.days.findIndex(d=>d.weekday.slice(0,3).toLowerCase()===String(k).toLowerCase());
 function buildURL(){
   const p = new URLSearchParams();
+  if (state.view==='favorites'){
+    p.set('view','favorites');
+    if (state.w) p.set('w', state.w);
+    if (state.l) p.set('l', state.l);
+    return '?'+p.toString();
+  }
   p.set('day', dayKey(state.day));
   if (state.venue) p.set('venue', state.venue);
   if (state.code) p.set('code', state.code);
@@ -486,6 +580,7 @@ DATA.days.forEach((d,i)=>{
   daysNav.appendChild(b);
 });
 function setDay(i){
+  exitFavview();
   state.day = i;
   localStorage.setItem('tantra-day', i);
   [...daysNav.children].forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.day===i)));
@@ -493,6 +588,158 @@ function setDay(i){
   applyFilters();
   updateURL();
   window.scrollTo({top:0});
+}
+
+// --- favorites (personal, private, localStorage) ---
+const FAV_KEY = 'tantra-favs';
+const favs = (function(){
+  try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); }
+  catch { return new Set(); }
+})();
+function saveFavs(){
+  try { localStorage.setItem(FAV_KEY, JSON.stringify([...favs])); } catch {}
+}
+const EXTRAS_KEY = 'tantra-fav-extras';
+let showExtras = (function(){ try { return localStorage.getItem(EXTRAS_KEY) !== '0'; } catch { return true; } })();
+function applyExtras(){ favsec.classList.toggle('hide-extras', !showExtras); }
+function paintHeart(b, id){
+  const on = favs.has(id);
+  b.classList.toggle('on', on);
+  b.setAttribute('aria-pressed', String(on));
+  b.setAttribute('aria-label', on ? 'Remove from favorites' : 'Add to favorites');
+  b.title = on ? 'Remove from favorites' : 'Add to favorites';
+  b.textContent = on ? '♥' : '♡';
+}
+function makeHeart(id, extra){
+  const b = h('button','heart'+(extra ? ' '+extra : ''));
+  b.dataset.fav = id;
+  b.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); toggleFav(id); });
+  paintHeart(b, id);
+  return b;
+}
+function reflectFav(id){
+  document.querySelectorAll('.heart[data-fav="'+id+'"]').forEach(b=>paintHeart(b, id));
+}
+function toggleFav(id){
+  if (favs.has(id)) favs.delete(id); else favs.add(id);
+  saveFavs();
+  reflectFav(id);
+  updateFavPill();
+  if (state.view==='favorites') renderFavorites();
+}
+
+// heart pill in the day strip (always visible, even at zero favorites)
+const favPill = h('button','daybtn favpill');
+favPill.dataset.day = 'fav';
+favPill.setAttribute('aria-pressed','false');
+favPill.setAttribute('aria-label','My favorites');
+favPill.addEventListener('click', enterFavorites);
+daysNav.insertBefore(favPill, daysNav.firstChild);
+function updateFavPill(){
+  favPill.textContent = favs.size ? '♥ '+favs.size : '♥';
+}
+updateFavPill();
+
+// favorites view — clean, no filters, reuses the full event cards
+const favsec = h('section','favsec');
+favsec.id = 'favsec';
+function enterFavorites(){
+  state.view = 'favorites';
+  document.documentElement.classList.add('favview');
+  favPill.setAttribute('aria-pressed','true');
+  [...daysNav.children].forEach(b=>{ if (b!==favPill) b.setAttribute('aria-pressed','false'); });
+  renderFavorites();
+  window.scrollTo({top:0});
+  updateURL();
+}
+function exitFavview(){
+  if (state.view!=='favorites') return;
+  state.view = '';
+  document.documentElement.classList.remove('favview');
+}
+function renderFavBanner(ev){
+  const ceremony = /CEREMONY|GATHERING|❤️/u.test(ev.title);
+  const el = h('article','ev banner-row'+(ceremony?' ceremony':''));
+  el.dataset.start = ev.start; el.dataset.end = ev.end||'';
+  const t = h('div','time');
+  const [a,b] = (ev.time||'').split('–');
+  t.appendChild(h('span',null,a||''));
+  if (b) t.appendChild(h('span','end',b));
+  el.appendChild(t);
+  const body = h('div','body');
+  let label = ev.title.replace(/❤️/gu,'').trim()
+    .replace(/^\s*\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}\s*[-–]?\s*/,'')
+    .replace(/\s+/g,' ').trim();
+  body.appendChild(h('h3',null,label));
+  el.appendChild(body);
+  return el;
+}
+function isPastDay(day){
+  const d = new Date(day.dateLabel);
+  if (isNaN(d)) return false;
+  d.setHours(0,0,0,0);
+  const t = new Date(); t.setHours(0,0,0,0);
+  return d < t;
+}
+const dayCollapse = new Map(); // tabName -> collapsed(bool); session-only, recomputed each load
+function renderFavorites(){
+  favsec.textContent = '';
+  const activeDays = DATA.days.filter(day=>day.events.some(e=>!e.banner && favs.has(e._id)));
+  if (!activeDays.length){
+    const empty = h('div','favempty');
+    empty.appendChild(h('div','bigheart','♡'));
+    empty.appendChild(h('p',null,'No favorites yet'));
+    empty.appendChild(h('p','hint','Tap the ♥ on any workshop to build your personal schedule.'));
+    favsec.appendChild(empty);
+    return;
+  }
+  const bar = h('div','favbar');
+  const tg = h('button','favtoggle');
+  const setLabel = ()=>{
+    tg.setAttribute('aria-pressed', String(showExtras));
+    tg.textContent = (showExtras?'Hide':'Show')+' meals & ceremonies';
+  };
+  setLabel();
+  tg.addEventListener('click',()=>{
+    showExtras = !showExtras;
+    try { localStorage.setItem(EXTRAS_KEY, showExtras?'1':'0'); } catch {}
+    applyExtras(); setLabel();
+  });
+  bar.appendChild(tg);
+  favsec.appendChild(bar);
+  applyExtras();
+
+  activeDays.forEach(day=>{
+    let collapsed;
+    if (dayCollapse.has(day.tabName)) collapsed = dayCollapse.get(day.tabName);
+    else { collapsed = isPastDay(day); dayCollapse.set(day.tabName, collapsed); }
+
+    const wrap = h('div','favday'+(collapsed?' collapsed':''));
+    const head = h('button','favhead');
+    head.setAttribute('aria-expanded', String(!collapsed));
+    const label = h('div','favlabel');
+    label.appendChild(h('div','date',(day.weekday+' · '+day.dateLabel).toUpperCase()));
+    if (day.theme) label.appendChild(h('div','theme',day.theme));
+    head.appendChild(label);
+    const favCount = day.events.filter(e=>!e.banner && favs.has(e._id)).length;
+    head.appendChild(h('span','favcount','♥ '+favCount));
+    head.appendChild(h('span','chev','⌄'));
+    head.addEventListener('click',()=>{
+      const now = !wrap.classList.contains('collapsed');
+      wrap.classList.toggle('collapsed', now);
+      dayCollapse.set(day.tabName, now);
+      head.setAttribute('aria-expanded', String(!now));
+    });
+    wrap.appendChild(head);
+
+    const bodyc = h('div','favbody');
+    day.events.forEach(ev=>{
+      if (ev.banner) bodyc.appendChild(renderFavBanner(ev));
+      else if (favs.has(ev._id)) bodyc.appendChild(renderEvent(ev));
+    });
+    wrap.appendChild(bodyc);
+    favsec.appendChild(wrap);
+  });
 }
 
 // --- venue chips ---
@@ -565,6 +812,7 @@ DATA.days.forEach((day,i)=>{
   sec.appendChild(h('div','empty','Nothing matches here — soften your filters.'));
   main.appendChild(sec);
 });
+main.appendChild(favsec);
 
 function renderBanner(ev){
   const big = /CEREMONY|GATHERING|❤️/u.test(ev.title);
@@ -618,6 +866,7 @@ function renderEvent(ev){
   if (ev.note && !locNote(ev)) body.appendChild(h('p','desc',ev.note));
   body.appendChild(h('p','desc',ev.desc||''));
   el.appendChild(body);
+  el.appendChild(makeHeart(ev._id, 'card'));
   el.addEventListener('click', e=>{
     if (document.documentElement.classList.contains('print')) return;
     e.preventDefault();
@@ -663,6 +912,7 @@ function openDetail(id, push=true){
   close.setAttribute('aria-label','Close');
   close.addEventListener('click', closeDetail);
   card.appendChild(close);
+  card.appendChild(makeHeart(ev._id, 'detailcorner'));
 
   card.appendChild(h('div','when',
     day.weekday+' '+day.dateLabel.replace(/, \\d{4}$/,'')+' · '+(ev.allDay?'All day':ev.time)));
@@ -816,6 +1066,12 @@ document.addEventListener('keydown', e=>{
 });
 window.addEventListener('popstate',()=>{
   const p = new URLSearchParams(location.search);
+  if (p.get('view')==='favorites'){
+    if (state.view!=='favorites') enterFavorites();
+  } else if (state.view==='favorites'){
+    exitFavview();
+    [...daysNav.children].forEach(b=>b.setAttribute('aria-pressed', String(+b.dataset.day===state.day)));
+  }
   const l = p.get('l'), w = p.get('w');
   if (l && leaderIndex.has(l)) openLeader(l,false);
   else if (w && detailIndex.has(w)) openDetail(w,false);
@@ -892,6 +1148,7 @@ tick(); setInterval(tick, 60000);
   }
   const q = p.get('q');
   if (q){ searchEl.value = q; state.q = q.trim().toLowerCase(); applyFilters(); }
+  if (p.get('view')==='favorites') enterFavorites();
   const w = p.get('w');
   const l = p.get('l');
   if (l && leaderIndex.has(l)) openLeader(l,false);
