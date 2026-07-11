@@ -251,7 +251,11 @@ html.favview #favsec{display:block}
 html.nowempty .nownote{display:block}
 html.nowempty main>section.day{display:none!important}
 .clash{color:var(--candle);font-size:11px;font-weight:700;letter-spacing:.05em;margin-top:7px}
-.favempty{text-align:center;padding:70px 22px 40px;color:var(--smoke)}
+.favempty{
+  text-align:center;margin:20px 0;padding:36px 24px 32px;color:var(--smoke);
+  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 6px 24px rgba(20,6,12,.45);
+}
 .favempty .bigheart{font-size:66px;line-height:1;color:var(--faint);margin-bottom:6px}
 .favempty p{margin:4px 0;font-size:17px;color:var(--linen)}
 .favempty .hint{font-size:13.5px;color:var(--smoke);max-width:300px;margin:6px auto 0;line-height:1.5}
