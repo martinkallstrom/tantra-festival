@@ -228,9 +228,7 @@ section.day.active{display:block}
 .heart.detailcorner.on{color:var(--rose)}
 .detail h2{padding-right:76px}
 .favsec{display:none}
-html.favview .filters,
-html.favview details.legend.controls,
-html.favview .printswitch,
+html.favview .controlcard,
 html.favview main>section.day{display:none!important}
 html.favview #favsec{display:block}
 .favempty{text-align:center;padding:70px 22px 40px;color:var(--smoke)}
@@ -368,7 +366,7 @@ html.favview #favsec{display:block}
   width:92px;height:92px;border-radius:50%;object-fit:cover;flex:none;
   border:2px solid var(--candle);
 }
-.detail .leadhead h2{margin:0 0 2px}
+.detail .leadhead h2{margin:0 0 2px;padding-right:0}
 .detail .leadhead .sub{margin:0;font-size:14px}
 .detail .listhead{
   font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--faint);
@@ -465,6 +463,9 @@ html.print .banner.meal span{background:none;border:none;box-shadow:none;padding
 html.print .banner.meal::before,html.print .banner.meal::after{background:#e5e5e5}
 html.print .empty{display:none!important}
 html.print .heart{display:none!important}
+/* printing always outputs the full schedule, even from the favorites view */
+html.print main>section.day{display:block!important}
+html.print #favsec{display:none!important}
 html.print footer{color:#999;font-size:8px;padding-bottom:8px}
 html.print footer>div{background:none;border:none}
 @media print{
