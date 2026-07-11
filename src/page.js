@@ -275,8 +275,9 @@ html.favview #favsec{display:block}
 .favbar{display:flex;justify-content:flex-end;padding:14px 0 0}
 .favtoggle{
   flex:none;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
-  background:none;color:var(--smoke);font-size:11.5px;font-weight:700;
+  background:var(--dusk);color:var(--smoke);font-size:11.5px;font-weight:700;
   letter-spacing:.06em;cursor:pointer;transition:border-color .15s,color .15s;
+  box-shadow:0 4px 14px rgba(20,6,12,.4);
 }
 .favtoggle[aria-pressed="false"]{color:var(--faint)}
 .favtoggle:hover{border-color:var(--faint)}
