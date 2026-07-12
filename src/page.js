@@ -573,7 +573,9 @@ DATA.days.forEach((day,i)=>{
   const key = (day.weekday||day.tabName).slice(0,3).toLowerCase();
   day.events.forEach(ev=>{
     if (ev.banner) return;
-    let id = key+'-'+(ev.allDay?'allday':ev.start)+'-'+slug(ev.title);
+    // ids come from the server (parse.js assignIds); fall back to computing
+    // them locally with the same algorithm for pre-id cached data
+    let id = ev.id || (key+'-'+(ev.allDay?'allday':ev.start)+'-'+slug(ev.title));
     while (detailIndex.has(id)) id += '-2';
     ev._id = id;
     detailIndex.set(id, {ev, dayIdx:i});
@@ -694,8 +696,43 @@ function toggleFav(id){
   saveFavs();
   reflectFav(id);
   updateFavPill();
+  queueVote(id, favs.has(id));
   if (state.view==='favorites') renderFavorites();
 }
+
+// Anonymous heart telemetry for the (unlinked) /top list. Queued in
+// localStorage so hearts made offline in a field still count later.
+const VOTE_Q = 'tantra-voteq';
+let flushing = false;
+function queueVote(id, on){
+  try {
+    const q = JSON.parse(localStorage.getItem(VOTE_Q)||'[]');
+    q.push({id, on});
+    localStorage.setItem(VOTE_Q, JSON.stringify(q.slice(-200)));
+  } catch {}
+  flushVotes();
+}
+async function flushVotes(){
+  if (flushing) return;
+  flushing = true;
+  try {
+    let q = JSON.parse(localStorage.getItem(VOTE_Q)||'[]');
+    while (q.length){
+      const res = await fetch('/vote', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify(q[0]),
+        keepalive: true,
+      });
+      if (!res.ok && res.status !== 400) throw new Error('retry later');
+      q.shift();
+      localStorage.setItem(VOTE_Q, JSON.stringify(q));
+    }
+  } catch {}
+  flushing = false;
+}
+window.addEventListener('online', flushVotes);
+flushVotes();
 
 // heart pill in the day strip (always visible, even at zero favorites)
 const favPill = h('button','daybtn favpill');

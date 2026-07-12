@@ -281,9 +281,29 @@ export function buildSchedule(sheets) {
       out.days.push(day);
     }
   }
-  return out;
+  return assignIds(out);
 }
 
 export function looksLikeLocationNote(note) {
   return note && looksLikeLocation(note);
+}
+
+const slugify = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'x';
+
+// Stable per-workshop ids, shared by the client (deep links, favorites) and
+// the worker (vote validation). Must stay in sync with the fallback in page.js.
+export function assignIds(data) {
+  const seen = new Set();
+  for (const day of data.days) {
+    const key = (day.weekday || day.tabName || '').slice(0, 3).toLowerCase();
+    for (const ev of day.events) {
+      if (ev.banner) continue;
+      let id = key + '-' + (ev.allDay ? 'allday' : ev.start) + '-' + slugify(ev.title);
+      while (seen.has(id)) id += '-2';
+      seen.add(id);
+      ev.id = id;
+    }
+  }
+  return data;
 }

@@ -13,3 +13,8 @@ crons = ["0 * * * *"]
 [[kv_namespaces]]
 binding = "SCHEDULE"
 id = "073c0742f8464ed9a3f47910e7710fa3"
+
+[[d1_databases]]
+binding = "VOTES"
+database_name = "tantra-votes"
+database_id = "6bd0aa1f-4dae-48e9-90a0-220960f7c198"

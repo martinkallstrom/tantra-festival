@@ -1,4 +1,4 @@
-import { buildSchedule } from './parse.js';
+import { buildSchedule, assignIds } from './parse.js';
 import { renderPage } from './page.js';
 import leaders from './leaders.json';
 
@@ -57,8 +57,64 @@ async function refresh(env) {
 
 async function getData(env) {
   const cached = await env.SCHEDULE.get(KV_KEY, 'json');
-  if (cached) return cached;
+  if (cached) return assignIds(cached); // backfill ids on pre-id cache entries
   return refresh(env);
+}
+
+function eventIndex(data) {
+  const map = new Map();
+  data.days.forEach((day) => day.events.forEach((ev) => {
+    if (!ev.banner && ev.id) map.set(ev.id, { ev, day });
+  }));
+  return map;
+}
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Unofficial, unlinked leaderboard of hearted sessions.
+function renderTop(data, rows) {
+  const idx = eventIndex(data);
+  const items = rows
+    .filter((r) => idx.has(r.id))
+    .map((r, i) => {
+      const { ev, day } = idx.get(r.id);
+      const when = day.weekday.slice(0, 3) + ' ' + (ev.allDay ? 'all day' : ev.time);
+      const fac = ev.facilitators.length ? ' · ' + ev.facilitators.join(' & ') : '';
+      return `<li>
+        <span class="rank">${i + 1}</span>
+        <span class="what"><a href="/?w=${esc(r.id)}">${esc(ev.title)}</a>
+          <small>${esc(when)} · ${esc(ev.venue.replace(' (CAFÉ ATTIC)', ''))}${esc(fac)}</small></span>
+        <span class="n">♥ ${r.n}</span>
+      </li>`;
+    }).join('\n');
+  return `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#2a1019">
+<title>Top picks · Tantra Festival</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#2a1019;color:#f9edd5;font:400 16px/1.5 Karla,system-ui,sans-serif;padding:28px 16px 60px}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-size:24px;color:#f2a93b}
+.sub{color:#d4b29e;font-size:13px;margin:4px 0 24px}
+ol{list-style:none}
+li{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid #5c2d36}
+.rank{flex:none;width:28px;text-align:right;font-weight:700;color:#97705f}
+li:nth-child(-n+3) .rank{color:#f2a93b}
+.what{flex:1;min-width:0}
+.what a{color:#f9edd5;text-decoration:none;font-weight:700}
+.what small{display:block;color:#d4b29e;font-size:12.5px}
+.n{flex:none;font-weight:700;color:#e5518d}
+.empty{color:#d4b29e;padding:40px 0;text-align:center;font-style:italic}
+</style></head><body><div class="wrap">
+<h1>Unofficial top picks</h1>
+<p class="sub">Live count of ♥ marks from attendees' devices. Anonymous, unscientific, lovingly unofficial.</p>
+${items ? '<ol>' + items + '</ol>' : '<p class="empty">No hearts counted yet.</p>'}
+</div></body></html>`;
 }
 
 export default {
@@ -74,6 +130,29 @@ export default {
         const data = await refresh(env);
         return Response.json({ ok: true, updatedAt: data.updatedAt,
           events: data.days.reduce((n, d) => n + d.events.length, 0) });
+      }
+      if (url.pathname === '/vote' && request.method === 'POST') {
+        let body;
+        try { body = await request.json(); } catch { body = null; }
+        const id = body && typeof body.id === 'string' && body.id.length <= 80 ? body.id : null;
+        if (!id) return new Response('Bad request', { status: 400 });
+        const data = await getData(env);
+        if (!eventIndex(data).has(id)) return new Response('Unknown workshop', { status: 400 });
+        const delta = body.on ? 1 : -1;
+        await env.VOTES.prepare(
+          'INSERT INTO votes (id, n) VALUES (?1, MAX(0, ?2)) ' +
+          'ON CONFLICT(id) DO UPDATE SET n = MAX(0, n + ?2)'
+        ).bind(id, delta).run();
+        return new Response(null, { status: 204 });
+      }
+      if (url.pathname === '/top') {
+        const [data, res] = await Promise.all([
+          getData(env),
+          env.VOTES.prepare('SELECT id, n FROM votes WHERE n > 0 ORDER BY n DESC, id LIMIT 50').all(),
+        ]);
+        return new Response(renderTop(data, res.results || []), {
+          headers: { 'content-type': 'text/html;charset=utf-8', 'cache-control': 'no-store' },
+        });
       }
       if (url.pathname !== '/') return new Response('Not found', { status: 404 });
       const data = await getData(env);
