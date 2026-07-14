@@ -202,15 +202,17 @@ section.day.active{display:block}
 .ev .desc:empty{display:none!important}
 
 /* ---------- favorites (heart) ---------- */
-.heart{
+/* button.heart, not bare .heart — ceremony banners also carry the class
+   "heart" and must not inherit button styling or the print hide rule */
+button.heart{
   background:none;border:none;cursor:pointer;padding:0;
   color:var(--faint);font-size:20px;line-height:1;
   -webkit-tap-highlight-color:transparent;
   transition:color .15s,transform .1s;
 }
-.heart:hover{color:var(--rose)}
-.heart.on{color:var(--rose)}
-.heart:active{transform:scale(1.1)}
+button.heart:hover{color:var(--rose)}
+button.heart.on{color:var(--rose)}
+button.heart:active{transform:scale(1.1)}
 .heart.card{
   flex:none;align-self:stretch;
   width:44px;min-width:44px;
@@ -487,7 +489,7 @@ html.print .banner.meal{color:#888;font-size:8px;margin:3px 0}
 html.print .banner.meal span{background:none;border:none;box-shadow:none;padding:0}
 html.print .banner.meal::before,html.print .banner.meal::after{background:#e5e5e5}
 html.print .empty{display:none!important}
-html.print .heart{display:none!important}
+html.print button.heart{display:none!important}
 /* printing always outputs the full schedule, even from the favorites view */
 html.print main>section.day{display:block!important}
 html.print #favsec{display:none!important}
