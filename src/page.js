@@ -483,7 +483,7 @@ html.print .code+.code::before{content:", "}
 html.print .code.warn{color:#a2325d}
 html.print .ev .desc,html.print .more{display:none!important}
 html.print .banner{margin:3px 0;break-inside:avoid}
-html.print .banner.heart{background:none;border:none;border-radius:0;padding:1px 0;color:#8a6320;font-size:8.5px;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+html.print .banner.heart{background:none;border:none;box-shadow:none;border-radius:0;padding:1px 0;color:#8a6320;font-size:8.5px;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
 html.print .banner.heart::before,html.print .banner.heart::after{content:"";flex:1;height:1px;background:#e6c98d}
 html.print .banner.meal{color:#888;font-size:8px;margin:3px 0}
 html.print .banner.meal span{background:none;border:none;box-shadow:none;padding:0}
