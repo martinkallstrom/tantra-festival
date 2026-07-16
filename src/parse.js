@@ -288,7 +288,7 @@ export function looksLikeLocationNote(note) {
   return note && looksLikeLocation(note);
 }
 
-const slugify = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+export const slugify = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'x';
 
 // Stable per-workshop ids, shared by the client (deep links, favorites) and
