@@ -425,6 +425,40 @@ footer>div:first-child{border-radius:14px 14px 0 0;border-bottom:none;padding-to
 footer>div:last-child{border-radius:0 0 14px 14px;padding-bottom:8px}
 footer>div:not(:first-child):not(:last-child){border-top:none;border-bottom:none}
 footer a{color:var(--linen)}
+/* big-text mode: CSS zoom scales text and layout together (works on iOS
+   Safari, unlike rem tricks with this px-based stylesheet) */
+html.bigtext body{zoom:1.75}
+/* zoomed, the sticky header would eat half the viewport — let it scroll */
+html.bigtext header.top{position:static}
+/* stack the card columns: side-by-side they can't fit the zoomed width */
+html.bigtext .ev{flex-direction:column;gap:6px}
+html.bigtext .ev .time{width:auto;flex-direction:row;gap:8px;align-items:baseline}
+html.bigtext .ev .time .live{margin-top:0}
+html.bigtext button.heart.card{
+  width:auto;min-width:0;
+  border-left:none;border-top:1px solid var(--line);
+  margin:0 -14px -12px -12px;border-radius:0 0 13px 13px;
+  padding:8px 0;
+}
+html.print body{zoom:1!important}
+.zoomtoggle{
+  display:inline-flex;align-items:center;gap:10px;
+  margin:10px 0;padding:12px 22px;border-radius:999px;
+  border:1px solid var(--line);background:var(--night);color:var(--linen);
+  font-size:17px;font-weight:700;letter-spacing:.03em;
+}
+.zoomtoggle .track{
+  width:40px;height:24px;border-radius:12px;background:var(--line);
+  position:relative;transition:background .2s;flex:none;
+}
+.zoomtoggle .track::after{
+  content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;
+  border-radius:50%;background:var(--linen);transition:transform .2s;
+}
+.zoomtoggle[aria-pressed="true"]{border-color:var(--candle);color:var(--candle)}
+.zoomtoggle[aria-pressed="true"] .track{background:var(--candle)}
+.zoomtoggle[aria-pressed="true"] .track::after{transform:translateX(16px)}
+html.print .zoomtoggle{display:none}
 .empty{
   display:none;color:var(--smoke);text-align:center;margin:20px auto;padding:20px 24px;
   font-style:italic;font-family:Fraunces,serif;font-size:17px;
@@ -1429,6 +1463,24 @@ a.href = ${JSON.stringify('https://docs.google.com/spreadsheets/d/e/2PACX-1vTbrt
 src.appendChild(a);
 src.appendChild(document.createTextNode(' · refreshed hourly'));
 foot.appendChild(src);
+
+// --- big-text mode for reading without glasses ---
+const ZOOM_KEY = 'tantra-bigtext';
+const zoomDiv = h('div');
+const zoomBtn = h('button','zoomtoggle');
+zoomBtn.appendChild(h('span',null,'Big text'));
+zoomBtn.appendChild(h('span','track'));
+zoomBtn.setAttribute('aria-label','Larger text and buttons for reading without glasses');
+function setBigText(on){
+  document.documentElement.classList.toggle('bigtext', on);
+  zoomBtn.setAttribute('aria-pressed', String(on));
+  try { localStorage.setItem(ZOOM_KEY, on?'1':'0'); } catch {}
+}
+zoomBtn.addEventListener('click', ()=>
+  setBigText(!document.documentElement.classList.contains('bigtext')));
+zoomDiv.appendChild(zoomBtn);
+foot.appendChild(zoomDiv);
+setBigText((()=>{ try { return localStorage.getItem(ZOOM_KEY)==='1'; } catch { return false; } })());
 
 // --- offline: install the service worker ---
 if ('serviceWorker' in navigator){
