@@ -1,66 +1,82 @@
-// Renders the full app shell. All schedule data is inlined as JSON and the
-// page is rendered client-side, so one cached HTML response is the whole app.
+// Renders the full app shell for one festival. All schedule data is inlined
+// as JSON and the page is rendered client-side, so one cached HTML response
+// is the whole app. Theme, copy and assets come from the festival config.
 
-export function renderPage(data, origin = 'https://tantra-festival.kindship-ai.workers.dev') {
+export function renderPage(data, origin, fest) {
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  const base = '/' + fest.slug + '/';
+  const t = fest.theme;
+  const tokensCSS = Object.entries(t.tokens)
+    .map(([k, v]) => '--' + k + ':' + v + ';').join('\n  ');
+  const clientCfg = JSON.stringify({
+    slug: fest.slug,
+    base,
+    venueColors: t.venueColors,
+    venueFallback: t.tokens['venue-fallback'],
+    warnCodes: fest.codes.warn || [],
+    nownote: fest.nownote,
+    icsProdId: fest.icsProdId,
+    utcOffsetMin: fest.utcOffsetMin,
+    sheetUrl: fest.sheet.pubBase + 'html',
+    festivals: data.switcher || [],
+  }).replace(/</g, '\\u003c');
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2a1019">
-<meta name="description" content="Mobile-friendly schedule for the Ängsbacka Tantra Festival, July 14–19 2026.">
-<title>Tantra Festival · Ängsbacka</title>
+<meta name="theme-color" content="${t.tokens.bg}">
+<meta name="description" content="${fest.metaDescription}">
+<title>${fest.title}</title>
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Ängsbacka Tantra Festival">
-<meta property="og:title" content="Tantra Festival · Ängsbacka — July 14–19 2026">
-<meta property="og:description" content="The full festival schedule: six days of workshops, ceremonies and celebration at Ängsbacka.">
-<meta property="og:url" content="${origin}/">
-<meta property="og:image" content="${origin}/og.jpg">
+<meta property="og:site_name" content="${fest.siteName}">
+<meta property="og:title" content="${fest.ogTitle}">
+<meta property="og:description" content="${fest.ogDescription}">
+<meta property="og:url" content="${origin}${base}">
+<meta property="og:image" content="${origin}${fest.assets.og}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Colorful mural of dancing figures, lotus flowers and swirling flames">
+<meta property="og:image:alt" content="${fest.ogImageAlt}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Tantra Festival · Ängsbacka — July 14–19 2026">
-<meta name="twitter:description" content="The full festival schedule: six days of workshops, ceremonies and celebration at Ängsbacka.">
-<meta name="twitter:image" content="${origin}/og.jpg">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌹</text></svg>">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="twitter:title" content="${fest.ogTitle}">
+<meta name="twitter:description" content="${fest.ogDescription}">
+<meta name="twitter:image" content="${origin}${fest.assets.og}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${fest.assets.favicon}</text></svg>">
+<link rel="manifest" href="${fest.assets.manifest}">
+<link rel="apple-touch-icon" href="${fest.assets.icon180}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&family=Karla:wght@400;500;700&family=Spline+Sans+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="${t.fontsHref}" rel="stylesheet">
 <style>
 :root{
-  /* palette drawn from the mural backdrop: crimson, magenta, saffron,
-     indigo night sky and warm cream */
-  --night:#2a1019; --dusk:#3b1a22; --dusk-2:#4a212c;
-  --linen:#f9edd5; --smoke:#d4b29e; --faint:#97705f;
-  --rose:#e5518d; --candle:#f2a93b; --line:#5c2d36;
+  ${tokensCSS}
+  --font-display:${t.fontDisplay};
+  --font-body:${t.fontBody};
+  --font-mono:${t.fontMono};
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{
-  background:var(--night);
-  color:var(--linen);
-  font:400 16px/1.45 Karla,system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  font:400 16px/1.45 var(--font-body);
   min-height:100vh;
 }
 /* fixed, centered, window-filling mural (position:fixed pseudo-element so it
    also stays put on iOS, where background-attachment:fixed is broken) */
 body::before{
   content:"";position:fixed;inset:0;z-index:-1;
-  background:url(/bg.jpg) center/cover no-repeat;
+  background:url(${fest.assets.bg}) center/cover no-repeat;
 }
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
-:focus-visible{outline:2px solid var(--candle);outline-offset:2px;border-radius:4px}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;border-radius:4px}
 
 /* ---------- header (brand + day pills + print, one sticky block) ---------- */
 header.top{
   position:sticky;top:0;z-index:30;
-  background:rgba(42,16,25,.95);backdrop-filter:blur(10px);
+  background:var(--header-bg);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line);
   padding:10px 14px 9px;
   display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
@@ -76,15 +92,15 @@ header.top nav.days{
   .printswitch{order:3;margin-left:0}
 }
 .brand .eyebrow{
-  font-size:10.5px;font-weight:700;letter-spacing:.18em;color:var(--rose);
+  font-size:10.5px;font-weight:700;letter-spacing:.18em;color:var(--accent);
 }
 .brand h1{
-  font-family:Fraunces,serif;font-weight:650;font-size:21px;line-height:1.1;
+  font-family:var(--font-display);font-weight:650;font-size:21px;line-height:1.1;
   letter-spacing:.01em;
 }
 .printswitch{
   display:flex;align-items:center;gap:7px;flex:none;
-  font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--smoke);
+  font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);
 }
 .printswitch .track{
   width:34px;height:20px;border-radius:10px;background:var(--line);
@@ -92,30 +108,30 @@ header.top nav.days{
 }
 .printswitch .track::after{
   content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;
-  border-radius:50%;background:var(--linen);transition:transform .2s;
+  border-radius:50%;background:var(--text);transition:transform .2s;
 }
-.printswitch[aria-pressed="true"] .track{background:var(--candle)}
+.printswitch[aria-pressed="true"] .track{background:var(--accent-2)}
 .printswitch[aria-pressed="true"] .track::after{transform:translateX(14px)}
 
 .daybtn{
   flex:none;padding:5px 11px;border-radius:999px;
-  border:1px solid var(--line);color:var(--smoke);
+  border:1px solid var(--line);color:var(--muted);
   font-size:12.5px;font-weight:700;white-space:nowrap;
 }
 .daybtn[aria-pressed="true"]{
-  background:var(--rose);border-color:var(--rose);color:#38101f;
+  background:var(--accent);border-color:var(--accent);color:var(--on-accent);
 }
 
 /* ---------- filters (one card so the section reads over the mural) ---------- */
 .controlcard{
   max-width:720px;margin:14px auto 4px;padding:12px 14px 10px;
-  background:var(--dusk);border:1px solid var(--line);border-radius:16px;
-  box-shadow:0 6px 24px rgba(20,6,12,.45);
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow-plate);
 }
 @media (max-width:752px){.controlcard{margin-left:16px;margin-right:16px}}
 .search{
   width:100%;padding:9px 14px;border-radius:12px;
-  background:var(--night);border:1px solid var(--line);color:var(--linen);
+  background:var(--bg);border:1px solid var(--line);color:var(--text);
   font:inherit;font-size:15px;
 }
 .search::placeholder{color:var(--faint)}
@@ -123,20 +139,20 @@ header.top nav.days{
 .vchip{
   flex:none;display:flex;align-items:center;gap:6px;
   padding:5px 11px;border-radius:999px;border:1px solid var(--line);
-  background:var(--night);
-  font-size:11.5px;font-weight:700;letter-spacing:.06em;color:var(--smoke);
+  background:var(--bg);
+  font-size:11.5px;font-weight:700;letter-spacing:.06em;color:var(--muted);
   white-space:nowrap;
 }
-.vchip .dot{width:8px;height:8px;border-radius:50%;background:var(--vc,var(--smoke))}
-.vchip[aria-pressed="true"]{background:var(--dusk-2);border-color:var(--vc,var(--rose));color:var(--linen)}
-details.legend{color:var(--smoke);font-size:13px}
+.vchip .dot{width:8px;height:8px;border-radius:50%;background:var(--vc,var(--muted))}
+.vchip[aria-pressed="true"]{background:var(--surface-2);border-color:var(--vc,var(--accent));color:var(--text)}
+details.legend{color:var(--muted);font-size:13px}
 details.legend summary{cursor:pointer;font-weight:700;letter-spacing:.08em;font-size:11px;padding:6px 0 2px;list-style:none}
-details.legend summary::before{content:"◦ ";color:var(--candle)}
+details.legend summary::before{content:"◦ ";color:var(--accent-2)}
 details.legend[open] summary::before{content:"• "}
 .codefilters{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 2px}
 details.legend dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding:4px 0 8px}
 details.legend dt{font-weight:700;font-size:11px;letter-spacing:.06em}
-details.legend dd{color:var(--smoke)}
+details.legend dd{color:var(--muted)}
 
 /* ---------- day section ---------- */
 main{max-width:720px;margin:0 auto;padding:4px 16px 40px}
@@ -144,61 +160,61 @@ section.day{display:none}
 section.day.active{display:block}
 .dayhead{
   margin:16px 0 6px;padding:12px 16px 14px;
-  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
-  box-shadow:0 6px 24px rgba(20,6,12,.45);
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow-plate);
 }
-.dayhead .date{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--smoke)}
+.dayhead .date{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
 .dayhead .theme{
-  font-family:Fraunces,serif;font-style:italic;font-weight:500;
-  font-size:34px;line-height:1.05;color:var(--linen);margin-top:2px;
+  font-family:var(--font-display);font-style:italic;font-weight:500;
+  font-size:34px;line-height:1.05;color:var(--text);margin-top:2px;
 }
 .notice{
   margin:10px 0;padding:12px 14px;border-radius:12px;
-  background:var(--dusk);border:1px solid var(--line);
-  color:var(--smoke);font-size:13.5px;
+  background:var(--surface);border:1px solid var(--line);
+  color:var(--muted);font-size:13.5px;
 }
-.notice strong{color:var(--linen)}
+.notice strong{color:var(--text)}
 
 /* ---------- event cards ---------- */
 .ev{
   display:flex;gap:12px;margin:10px 0;padding:12px 14px 12px 12px;
-  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
   border-left:4px solid var(--vc,var(--faint));
-  box-shadow:0 4px 18px rgba(20,6,12,.4);
+  box-shadow:var(--shadow-card);
   cursor:pointer;
 }
 .ev:hover{border-color:var(--faint);border-left-color:var(--vc,var(--faint))}
 .ev h3 a{color:inherit;text-decoration:none}
 .ev .time{
   flex:none;width:52px;
-  font:500 13px/1.5 "Spline Sans Mono",monospace;color:var(--linen);
+  font:500 13px/1.5 var(--font-mono);color:var(--text);
   display:flex;flex-direction:column;
 }
 .ev .time .end{color:var(--faint);font-size:11.5px}
 .ev .time .live{
-  color:var(--candle);font-size:9.5px;font-weight:700;letter-spacing:.1em;
+  color:var(--accent-2);font-size:9.5px;font-weight:700;letter-spacing:.1em;
   font-family:Karla,sans-serif;margin-top:4px;display:none;
 }
-.ev.live{border-left-color:var(--candle)}
+.ev.live{border-left-color:var(--accent-2)}
 .ev.live .time .live{display:block}
 .ev .body{min-width:0;flex:1}
 .ev h3{font-size:16.5px;font-weight:700;line-height:1.25}
-.ev .sub{color:var(--smoke);font-size:13.5px;margin-top:1px}
+.ev .sub{color:var(--muted);font-size:13.5px;margin-top:1px}
 .ev .meta{
   display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px;margin-top:7px;
   font-size:11px;font-weight:700;letter-spacing:.07em;
 }
-.ev .venue{color:var(--vc,var(--smoke))}
-.ev .fac{color:var(--smoke);letter-spacing:.02em;font-weight:500;font-size:12.5px}
-.ev .loc{color:var(--candle);font-weight:700}
+.ev .venue{color:var(--vc,var(--muted))}
+.ev .fac{color:var(--muted);letter-spacing:.02em;font-weight:500;font-size:12.5px}
+.ev .loc{color:var(--accent-2);font-weight:700}
 .codes{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
 .code{
   font-size:9.5px;font-weight:700;letter-spacing:.09em;
   padding:2.5px 7px;border-radius:5px;
-  background:var(--night);border:1px solid var(--line);color:var(--smoke);
+  background:var(--bg);border:1px solid var(--line);color:var(--muted);
 }
-.code.warn{border-color:#9c4258;color:#f088b2}
-.ev .desc{color:var(--smoke);font-size:13.5px;margin-top:8px}
+.code.warn{border-color:var(--warn-border);color:var(--warn-text)}
+.ev .desc{color:var(--muted);font-size:13.5px;margin-top:8px}
 .ev .desc:empty{display:none!important}
 
 /* ---------- favorites (heart) ---------- */
@@ -210,8 +226,8 @@ button.heart{
   -webkit-tap-highlight-color:transparent;
   transition:color .15s,transform .1s;
 }
-button.heart:hover{color:var(--rose)}
-button.heart.on{color:var(--rose)}
+button.heart:hover{color:var(--accent)}
+button.heart.on{color:var(--accent)}
 button.heart:active{transform:scale(1.1)}
 .heart.card{
   flex:none;align-self:stretch;
@@ -221,63 +237,63 @@ button.heart:active{transform:scale(1.1)}
   border-left:1px solid var(--line);
   margin:-12px -14px -12px 0;border-radius:0 13px 13px 0;
 }
-.heart.card.on{color:var(--rose)}
+.heart.card.on{color:var(--accent)}
 .heart.card:active{transform:none}
-.daybtn.favpill{border-color:var(--rose);color:var(--rose)}
-.daybtn.favpill[aria-pressed="true"]{background:var(--rose);border-color:var(--rose);color:#38101f}
+.daybtn.favpill{border-color:var(--accent);color:var(--accent)}
+.daybtn.favpill[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .heart.detailcorner{
   position:absolute;top:8px;right:48px;
   width:40px;height:40px;
   display:flex;align-items:center;justify-content:center;
   font-size:26px;color:var(--faint);
 }
-.heart.detailcorner.on{color:var(--rose)}
+.heart.detailcorner.on{color:var(--accent)}
 .detail h2{padding-right:76px}
 .favsec{display:none}
 html.favview .controlcard,
 html.favview main>section.day{display:none!important}
 html.favview #favsec{display:block}
-.daybtn.nowpill{border-color:var(--candle);color:var(--candle)}
-.daybtn.nowpill[aria-pressed="true"]{background:var(--candle);border-color:var(--candle);color:#3a2306}
+.daybtn.nowpill{border-color:var(--accent-2);color:var(--accent-2)}
+.daybtn.nowpill[aria-pressed="true"]{background:var(--accent-2);border-color:var(--accent-2);color:var(--on-accent-2)}
 .stale{
   margin:14px 0 4px;padding:11px 14px;border-radius:12px;
-  background:var(--dusk);border:1px solid var(--candle);
-  color:var(--candle);font-size:13px;font-weight:700;
-  box-shadow:0 4px 18px rgba(20,6,12,.4);
+  background:var(--surface);border:1px solid var(--accent-2);
+  color:var(--accent-2);font-size:13px;font-weight:700;
+  box-shadow:var(--shadow-card);
 }
 .nownote{
-  display:none;color:var(--smoke);text-align:center;margin:20px 0;padding:20px 24px;
-  font-style:italic;font-family:Fraunces,serif;font-size:17px;
-  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
+  display:none;color:var(--muted);text-align:center;margin:20px 0;padding:20px 24px;
+  font-style:italic;font-family:var(--font-display);font-size:17px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
 }
 html.nowempty .nownote{display:block}
 html.nowempty main>section.day{display:none!important}
-.clash{color:var(--candle);font-size:11px;font-weight:700;letter-spacing:.05em;margin-top:7px}
+.clash{color:var(--accent-2);font-size:11px;font-weight:700;letter-spacing:.05em;margin-top:7px}
 .favempty{
-  text-align:center;margin:20px 0;padding:36px 24px 32px;color:var(--smoke);
-  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
-  box-shadow:0 6px 24px rgba(20,6,12,.45);
+  text-align:center;margin:20px 0;padding:36px 24px 32px;color:var(--muted);
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow-plate);
 }
 .favempty .bigheart{font-size:66px;line-height:1;color:var(--faint);margin-bottom:6px}
-.favempty p{margin:4px 0;font-size:17px;color:var(--linen)}
-.favempty .hint{font-size:13.5px;color:var(--smoke);max-width:300px;margin:6px auto 0;line-height:1.5}
+.favempty p{margin:4px 0;font-size:17px;color:var(--text)}
+.favempty .hint{font-size:13.5px;color:var(--muted);max-width:300px;margin:6px auto 0;line-height:1.5}
 .favday{margin:14px 0 0}
 .favhead{
   display:flex;align-items:center;gap:12px;width:100%;
-  background:var(--dusk);border:1px solid var(--line);border-radius:12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
   cursor:pointer;color:inherit;padding:11px 14px;text-align:left;
   transition:border-color .15s,background .15s;
 }
-.favhead:hover{border-color:var(--faint);background:var(--dusk-2)}
+.favhead:hover{border-color:var(--faint);background:var(--surface-2)}
 .favlabel{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
-.favlabel .date{flex:none;font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--smoke)}
+.favlabel .date{flex:none;font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
 .favlabel .theme{
-  font-family:Fraunces,serif;font-style:italic;font-weight:500;
-  font-size:22px;line-height:1.1;color:var(--linen);
+  font-family:var(--font-display);font-style:italic;font-weight:500;
+  font-size:22px;line-height:1.1;color:var(--text);
 }
-.favcount{flex:none;font-size:12px;font-weight:700;color:var(--rose);letter-spacing:.04em}
+.favcount{flex:none;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.04em}
 .favhead .chev{
-  flex:none;font-size:18px;line-height:1;color:var(--smoke);
+  flex:none;font-size:18px;line-height:1;color:var(--muted);
   width:22px;text-align:center;transition:transform .2s;
 }
 .favday.collapsed .favhead .chev{transform:rotate(-90deg)}
@@ -285,25 +301,25 @@ html.nowempty main>section.day{display:none!important}
 .favday.collapsed .favbody{display:none}
 .favbody{padding:2px 0 6px}
 .ev.banner-row{
-  background:var(--dusk-2);border-left:4px solid var(--line);cursor:default;
+  background:var(--surface-2);border-left:4px solid var(--line);cursor:default;
 }
 .ev.banner-row:hover{border-color:var(--line);border-left-color:var(--line)}
 .ev.banner-row .body{align-self:center}
 .ev.banner-row h3{
   font-size:12.5px;font-weight:700;letter-spacing:.08em;line-height:1.35;
-  text-transform:uppercase;color:var(--smoke);
+  text-transform:uppercase;color:var(--muted);
 }
-.ev.banner-row .time{color:var(--smoke)}
+.ev.banner-row .time{color:var(--muted)}
 .ev.banner-row .time .end{color:var(--faint)}
-.ev.banner-row.ceremony{border-left-color:var(--candle)}
-.ev.banner-row.ceremony:hover{border-left-color:var(--candle)}
-.ev.banner-row.ceremony h3{color:var(--candle)}
+.ev.banner-row.ceremony{border-left-color:var(--accent-2)}
+.ev.banner-row.ceremony:hover{border-left-color:var(--accent-2)}
+.ev.banner-row.ceremony h3{color:var(--accent-2)}
 .favbar{display:flex;justify-content:flex-end;gap:8px;padding:14px 0 0}
 .favtoggle{
   flex:none;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
-  background:var(--dusk);color:var(--smoke);font-size:11.5px;font-weight:700;
+  background:var(--surface);color:var(--muted);font-size:11.5px;font-weight:700;
   letter-spacing:.06em;cursor:pointer;transition:border-color .15s,color .15s;
-  box-shadow:0 4px 14px rgba(20,6,12,.4);
+  box-shadow:var(--shadow-pill);
 }
 .favtoggle[aria-pressed="false"]{color:var(--faint)}
 .favtoggle:hover{border-color:var(--faint)}
@@ -313,32 +329,32 @@ html.nowempty main>section.day{display:none!important}
 .banner{margin:16px 0;text-align:center}
 .banner.meal{
   display:flex;align-items:center;gap:12px;
-  color:var(--smoke);font-size:12px;font-weight:700;letter-spacing:.12em;
+  color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.12em;
 }
 .banner.meal::before,.banner.meal::after{
-  content:"";flex:1;height:1px;background:rgba(59,26,34,.75);
+  content:"";flex:1;height:1px;background:var(--hairline);
 }
 .banner.meal span{
-  background:var(--rose);border:1px solid var(--rose);border-radius:999px;
-  color:#38101f;
-  padding:5px 14px;box-shadow:0 4px 14px rgba(20,6,12,.4);
+  background:var(--accent);border:1px solid var(--accent);border-radius:999px;
+  color:var(--on-accent);
+  padding:5px 14px;box-shadow:var(--shadow-pill);
 }
 .banner.heart{
   padding:14px 16px;border-radius:14px;
-  background:linear-gradient(120deg,rgba(242,169,59,.2),rgba(229,81,141,.16)) var(--dusk);
-  border:1px solid rgba(242,169,59,.5);
-  box-shadow:0 4px 18px rgba(20,6,12,.4);
-  color:var(--candle);font-weight:700;font-size:13.5px;letter-spacing:.04em;
+  background:var(--banner-grad) var(--surface);
+  border:1px solid var(--banner-border);
+  box-shadow:var(--shadow-card);
+  color:var(--accent-2);font-weight:700;font-size:13.5px;letter-spacing:.04em;
 }
 /* ---------- workshop detail overlay ---------- */
 .detailwrap{
   position:fixed;inset:0;z-index:50;overflow-y:auto;
-  background:rgba(24,8,15,.7);backdrop-filter:blur(5px);
+  background:var(--overlay-veil);backdrop-filter:blur(5px);
   display:flex;align-items:flex-start;justify-content:center;
 }
 .detailwrap[hidden]{display:none}
 .detail{
-  background:var(--dusk);border:1px solid var(--line);border-radius:18px;
+  background:var(--surface);border:1px solid var(--line);border-radius:18px;
   border-top:4px solid var(--vc,var(--faint));
   max-width:560px;width:calc(100% - 28px);
   margin:7vh 14px 48px;padding:20px 22px 22px;
@@ -346,43 +362,43 @@ html.nowempty main>section.day{display:none!important}
 }
 .detail .close{
   position:absolute;top:10px;right:12px;
-  font-size:22px;line-height:1;color:var(--smoke);padding:6px;
+  font-size:22px;line-height:1;color:var(--muted);padding:6px;
 }
 .detail .when{
-  font:500 13px "Spline Sans Mono",monospace;color:var(--candle);
+  font:500 13px var(--font-mono);color:var(--accent-2);
   letter-spacing:.04em;padding-right:80px;
 }
 .detail h2{
-  font-family:Fraunces,serif;font-weight:650;font-size:27px;line-height:1.1;
+  font-family:var(--font-display);font-weight:650;font-size:27px;line-height:1.1;
   margin:6px 0 2px;
 }
 .detail .sub{
-  font-family:Fraunces,serif;font-style:italic;font-size:16.5px;
-  color:var(--smoke);margin-bottom:12px;
+  font-family:var(--font-display);font-style:italic;font-size:16.5px;
+  color:var(--muted);margin-bottom:12px;
 }
 .detail .meta{
   display:flex;flex-wrap:wrap;gap:5px 12px;align-items:center;
   font-size:11.5px;font-weight:700;letter-spacing:.07em;margin:4px 0 2px;
 }
-.detail .venue{color:var(--vc,var(--smoke))}
-.detail .loc{color:var(--candle)}
-.detail .fac{color:var(--linen);font-weight:500;letter-spacing:.02em;font-size:14px}
-.detail .desc{color:var(--linen);font-size:15px;line-height:1.55;margin:12px 0 4px}
+.detail .venue{color:var(--vc,var(--muted))}
+.detail .loc{color:var(--accent-2)}
+.detail .fac{color:var(--text);font-weight:500;letter-spacing:.02em;font-size:14px}
+.detail .desc{color:var(--text);font-size:15px;line-height:1.55;margin:12px 0 4px}
 .detail .codelist{margin:12px 0 4px;padding:0;list-style:none}
 .detail .codelist li{
-  font-size:12.5px;color:var(--smoke);padding:3px 0;
+  font-size:12.5px;color:var(--muted);padding:3px 0;
   display:flex;gap:8px;align-items:baseline;
 }
 .detail .codelist .code{flex:none}
 .detail .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .detail .actions button,.detail .actions a{
   display:inline-block;padding:8px 14px;border-radius:999px;border:1px solid var(--line);
-  color:var(--smoke);font-size:12px;font-weight:700;letter-spacing:.06em;
+  color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;
   text-decoration:none;
 }
-.detail .actions button.primary{border-color:var(--rose);color:var(--rose)}
+.detail .actions button.primary{border-color:var(--accent);color:var(--accent)}
 .detail .actions a.feature{
-  background:var(--candle);border-color:var(--candle);color:#3a2306;font-weight:800;
+  background:var(--accent-2);border-color:var(--accent-2);color:var(--on-accent-2);font-weight:800;
 }
 .fac a.leaderlink{
   color:inherit;text-decoration:underline dotted;text-decoration-color:var(--faint);
@@ -391,7 +407,7 @@ html.nowempty main>section.day{display:none!important}
 .detail .leadhead{display:flex;gap:16px;align-items:center;margin:6px 0 4px}
 .detail .leadhead img{
   width:92px;height:92px;border-radius:50%;object-fit:cover;flex:none;
-  border:2px solid var(--candle);
+  border:2px solid var(--accent-2);
 }
 .detail .leadhead h2{margin:0 0 2px;padding-right:0}
 .detail .leadhead .sub{margin:0;font-size:14px}
@@ -403,28 +419,28 @@ html.nowempty main>section.day{display:none!important}
 .detail .wslist a{
   display:flex;gap:12px;align-items:baseline;padding:8px 0;
   border-bottom:1px solid var(--line);
-  color:var(--linen);text-decoration:none;font-size:14px;
+  color:var(--text);text-decoration:none;font-size:14px;
 }
 .detail .wslist li:last-child a{border-bottom:none}
 .detail .wslist .t{
   flex:none;width:104px;
-  font:500 11.5px "Spline Sans Mono",monospace;color:var(--candle);
+  font:500 11.5px var(--font-mono);color:var(--accent-2);
 }
 html.print .detailwrap{display:none!important}
 @media print{.detailwrap{display:none!important}}
 
 footer{
   max-width:720px;margin:0 auto 48px;padding:12px 16px;
-  color:var(--smoke);font-size:12px;line-height:1.7;text-align:center;
+  color:var(--muted);font-size:12px;line-height:1.7;text-align:center;
 }
 footer>div{
   display:inline-block;width:100%;
-  background:rgba(59,26,34,.92);border:1px solid var(--line);
+  background:var(--footer-plate);border:1px solid var(--line);
 }
 footer>div:first-child{border-radius:14px 14px 0 0;border-bottom:none;padding-top:8px}
 footer>div:last-child{border-radius:0 0 14px 14px;padding-bottom:8px}
 footer>div:not(:first-child):not(:last-child){border-top:none;border-bottom:none}
-footer a{color:var(--linen)}
+footer a{color:var(--text)}
 /* big-text mode: CSS zoom scales text and layout together (works on iOS
    Safari, unlike rem tricks with this px-based stylesheet) */
 html.bigtext body{zoom:1.75}
@@ -444,7 +460,7 @@ html.print body{zoom:1!important}
 .zoomtoggle{
   display:inline-flex;align-items:center;gap:10px;
   margin:10px 0;padding:12px 22px;border-radius:999px;
-  border:1px solid var(--line);background:var(--night);color:var(--linen);
+  border:1px solid var(--line);background:var(--bg);color:var(--text);
   font-size:17px;font-weight:700;letter-spacing:.03em;
 }
 .zoomtoggle .track{
@@ -453,16 +469,16 @@ html.print body{zoom:1!important}
 }
 .zoomtoggle .track::after{
   content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;
-  border-radius:50%;background:var(--linen);transition:transform .2s;
+  border-radius:50%;background:var(--text);transition:transform .2s;
 }
-.zoomtoggle[aria-pressed="true"]{border-color:var(--candle);color:var(--candle)}
-.zoomtoggle[aria-pressed="true"] .track{background:var(--candle)}
+.zoomtoggle[aria-pressed="true"]{border-color:var(--accent-2);color:var(--accent-2)}
+.zoomtoggle[aria-pressed="true"] .track{background:var(--accent-2)}
 .zoomtoggle[aria-pressed="true"] .track::after{transform:translateX(16px)}
 html.print .zoomtoggle{display:none}
 .empty{
-  display:none;color:var(--smoke);text-align:center;margin:20px auto;padding:20px 24px;
-  font-style:italic;font-family:Fraunces,serif;font-size:17px;
-  background:var(--dusk);border:1px solid var(--line);border-radius:14px;
+  display:none;color:var(--muted);text-align:center;margin:20px auto;padding:20px 24px;
+  font-style:italic;font-family:var(--font-display);font-size:17px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
 }
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -540,8 +556,8 @@ html.print footer>div{background:none;border:none}
 <body>
 <header class="top">
   <div class="brand" id="brand" role="button" tabindex="0" title="Reset all filters" aria-label="Reset all filters">
-    <div class="eyebrow">ÄNGSBACKA · JULY 14–19 2026</div>
-    <h1>Tantra Festival</h1>
+    <div class="eyebrow">${fest.eyebrow}</div>
+    <h1>${fest.name}</h1>
   </div>
   <button class="printswitch" id="printBtn" aria-pressed="false">
     PRINT <span class="track" aria-hidden="true"></span>
@@ -558,14 +574,15 @@ html.print footer>div{background:none;border:none}
 <footer id="foot"></footer>
 <script>
 const DATA = ${json};
+const CFG = ${clientCfg};
 (function(){
 "use strict";
-const VENUE_COLORS = {
-  'BIG BARN':'#f2688c','UPPER BARN':'#8fb3e8','BIG ANNEX':'#5ec6a2',
-  'HEART TENT':'#f28a52','SATSANG TENT':'#f2b544','STRAWBALE HOUSE':'#84c5e8',
-  'GARDEN TENT':'#aac36a','DAKINI TEMPLE (CAFÉ ATTIC)':'#e08fd8','OTHER':'#c9ad96'
-};
-const WARN_CODES = new Set(['NUDITY','POSSIBLY NUDITY','BOLD']);
+const LS = n => CFG.slug + '-' + n; // per-festival storage (tantra keys = legacy names)
+// remember the festival actually opened; the root URL honors this cookie
+try { document.cookie = 'festival=' + CFG.slug + ';path=/;max-age=31536000;samesite=lax'; } catch {}
+const VENUE_COLORS = CFG.venueColors;
+const VENUE_FALLBACK = CFG.venueFallback;
+const WARN_CODES = new Set(CFG.warnCodes);
 const state = { day:0, venue:'', q:'', code:'', w:'', l:'', view:'', now:false };  // day: -1 = all days; view: '' schedule | 'favorites'
 let booted = false; // suppress URL writes while restoring initial state
 
@@ -645,7 +662,7 @@ allDaysBtn.setAttribute('aria-pressed','false');
 allDaysBtn.addEventListener('click',()=>setDay(-1));
 daysNav.appendChild(allDaysBtn);
 DATA.days.forEach((d,i)=>{
-  const b = h('button','daybtn',d.tabName.replace('/7',''));
+  const b = h('button','daybtn',d.tabName.replace(/\\/\\d+$/,''));
   b.dataset.day = String(i);
   b.setAttribute('aria-pressed', String(i===state.day));
   b.addEventListener('click',()=>{ setDay(i); });
@@ -655,7 +672,7 @@ function setDay(i){
   exitFavview();
   exitNow();
   state.day = i;
-  localStorage.setItem('tantra-day', i);
+  localStorage.setItem(LS('day'), i);
   [...daysNav.children].forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.day===i)));
   document.querySelectorAll('section.day').forEach((s,j)=>s.classList.toggle('active', i===-1 || j===i));
   applyFilters();
@@ -682,7 +699,7 @@ function enterNow(){
   updateURL();
   window.scrollTo({top:0});
 }
-const FAV_KEY = 'tantra-favs';
+const FAV_KEY = LS('favs');
 const favs = (function(){
   try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); }
   catch { return new Set(); }
@@ -706,7 +723,7 @@ function saveFavs(){
   });
   if (changed) saveFavs();
 })();
-const EXTRAS_KEY = 'tantra-fav-extras';
+const EXTRAS_KEY = LS('fav-extras');
 let showExtras = (function(){ try { return localStorage.getItem(EXTRAS_KEY) !== '0'; } catch { return true; } })();
 function applyExtras(){ favsec.classList.toggle('hide-extras', !showExtras); }
 function paintHeart(b, id){
@@ -738,7 +755,7 @@ function toggleFav(id){
 
 // Anonymous heart telemetry for the (unlinked) /top list. Queued in
 // localStorage so hearts made offline in a field still count later.
-const VOTE_Q = 'tantra-voteq';
+const VOTE_Q = LS('voteq');
 let flushing = false;
 function queueVote(id, on){
   try {
@@ -754,7 +771,7 @@ async function flushVotes(){
   try {
     let q = JSON.parse(localStorage.getItem(VOTE_Q)||'[]');
     while (q.length){
-      const res = await fetch('/vote', {
+      const res = await fetch(CFG.base+'vote', {
         method:'POST',
         headers:{'content-type':'application/json'},
         body: JSON.stringify(q[0]),
@@ -920,7 +937,7 @@ function parseDayDate(day){
   return { y:+m[3], mo:MONTHS[m[1].toLowerCase()], d:+m[2] };
 }
 function icsStamp(pd, mins){
-  return new Date(Date.UTC(pd.y, pd.mo, pd.d, 0, mins-120))
+  return new Date(Date.UTC(pd.y, pd.mo, pd.d, 0, mins-CFG.utcOffsetMin))
     .toISOString().replace(/[-:]/g,'').replace(/\\.\\d{3}Z$/,'Z');
 }
 function icsEsc(s){
@@ -931,7 +948,7 @@ function icsEsc(s){
 function downloadIcs(){
   const CRLF = String.fromCharCode(13)+String.fromCharCode(10);
   const L = ['BEGIN:VCALENDAR','VERSION:2.0',
-    'PRODID:-//tantra-festival//schedule//EN','CALSCALE:GREGORIAN'];
+    'PRODID:'+CFG.icsProdId,'CALSCALE:GREGORIAN'];
   DATA.days.forEach(day=>{
     const pd = parseDayDate(day);
     if (!pd) return;
@@ -944,7 +961,7 @@ function downloadIcs(){
         ev.facilitators.length ? 'With '+ev.facilitators.join(' & ') : '']
         .filter(Boolean).join(' — ');
       L.push('BEGIN:VEVENT',
-        'UID:'+ev._id+'@tantra-festival',
+        'UID:'+ev._id+'@'+CFG.slug+'.angsbacka',
         'DTSTAMP:'+icsStamp(pd, ev.start),
         'DTSTART:'+icsStamp(pd, ev.start),
         'DTEND:'+icsStamp(pd, end),
@@ -958,7 +975,7 @@ function downloadIcs(){
   const blob = new Blob([L.join(CRLF)], {type:'text/calendar;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'tantra-favorites.ics';
+  a.download = CFG.slug+'-favorites.ics';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
 }
@@ -977,7 +994,7 @@ allChip.addEventListener('click',()=>setVenue(''));
 venuesEl.appendChild(allChip);
 allVenues.forEach(v=>{
   const c = h('button','vchip');
-  c.style.setProperty('--vc', VENUE_COLORS[v]||'#b7a8b3');
+  c.style.setProperty('--vc', VENUE_COLORS[v]||VENUE_FALLBACK);
   c.appendChild(h('span','dot'));
   c.appendChild(document.createTextNode(shortVenue(v)));
   c.setAttribute('aria-pressed','false');
@@ -993,7 +1010,8 @@ function setVenue(v){
   updateURL();
 }
 
-// --- codes legend + code filter pills ---
+// --- codes legend + code filter pills (hidden when the festival has none) ---
+if (!DATA.codes.length) document.getElementById('legend').style.display = 'none';
 const legend = document.getElementById('legend').querySelector('dl');
 const codeFiltersEl = document.getElementById('codefilters');
 DATA.codes.forEach(c=>{
@@ -1034,7 +1052,7 @@ DATA.days.forEach((day,i)=>{
   main.appendChild(sec);
 });
 main.appendChild(favsec);
-const nownote = h('div','nownote','The festival has not started yet — the Now view lights up July 14–19.');
+const nownote = h('div','nownote',CFG.nownote);
 main.insertBefore(nownote, main.firstChild);
 
 // warn when the cached schedule is old (cron broken or device long offline)
@@ -1057,7 +1075,7 @@ function renderBanner(ev){
 
 function renderEvent(ev){
   const el = h('article','ev');
-  el.style.setProperty('--vc', VENUE_COLORS[ev.venue]||'#b7a8b3');
+  el.style.setProperty('--vc', VENUE_COLORS[ev.venue]||VENUE_FALLBACK);
   el.dataset.venue = ev.venue;
   el.dataset.codes = ev.codes.join('|');
   el.dataset.start = ev.start; el.dataset.end = ev.end||'';
@@ -1137,7 +1155,7 @@ function openDetail(id, push=true){
   state.w = id; state.l = '';
   detailWrap.textContent = '';
   const card = h('div','detail');
-  card.style.setProperty('--vc', VENUE_COLORS[ev.venue]||'#c9ad96');
+  card.style.setProperty('--vc', VENUE_COLORS[ev.venue]||VENUE_FALLBACK);
 
   const close = h('button','close','×');
   close.setAttribute('aria-label','Close');
@@ -1209,7 +1227,7 @@ function openLeader(id, push=true){
   state.l = id;
   detailWrap.textContent = '';
   const card = h('div','detail');
-  card.style.setProperty('--vc','var(--candle)');
+  card.style.setProperty('--vc','var(--accent-2)');
 
   const close = h('button','close','×');
   close.setAttribute('aria-label','Close');
@@ -1383,7 +1401,7 @@ tick(); setInterval(tick, 60000);
   const urlDay = p.get('day')!=null ? dayFromKey(p.get('day')) : null;
   if (urlDay!=null && (urlDay===-1 || DATA.days[urlDay])) setDay(urlDay);
   else {
-    const saved = localStorage.getItem('tantra-day');
+    const saved = localStorage.getItem(LS('day'));
     const today = new Date().toDateString();
     const idx = DATA.days.findIndex(d=>{
       const t = new Date(d.dateLabel); return !isNaN(t)&&t.toDateString()===today;
@@ -1459,13 +1477,31 @@ contact.appendChild(tel);
 foot.appendChild(contact);
 const src = h('div');
 const a = h('a',null,'Source spreadsheet');
-a.href = ${JSON.stringify('https://docs.google.com/spreadsheets/d/e/2PACX-1vTbrtJeSyuzedXiLglt5h0R6UXqdZTqzFT85ONTJbQ0AhxxdEi2_JsRui59zv17o7V2aRg2xhTFhPZO/pubhtml')};
+a.href = CFG.sheetUrl;
 src.appendChild(a);
 src.appendChild(document.createTextNode(' · refreshed hourly'));
 foot.appendChild(src);
 
+// --- festival switcher (cookie set above makes the choice sticky) ---
+if (CFG.festivals && CFG.festivals.length > 1){
+  const sw = h('div');
+  sw.appendChild(document.createTextNode('Festival: '));
+  CFG.festivals.forEach((f,i)=>{
+    if (i) sw.appendChild(document.createTextNode(' · '));
+    if (f.slug === CFG.slug){
+      sw.appendChild(h('strong',null,f.shortName));
+    } else {
+      const link = h('a',null,f.shortName);
+      link.href = '/' + f.slug + '/';
+      sw.appendChild(link);
+    }
+  });
+  foot.appendChild(sw);
+}
+
 // --- big-text mode for reading without glasses ---
-const ZOOM_KEY = 'tantra-bigtext';
+const ZOOM_KEY = 'bigtext';
+const legacyZoom = (()=>{ try { return localStorage.getItem('tantra-bigtext'); } catch { return null; } })();
 const zoomDiv = h('div');
 const zoomBtn = h('button','zoomtoggle');
 zoomBtn.appendChild(h('span',null,'Big text'));
@@ -1480,7 +1516,7 @@ zoomBtn.addEventListener('click', ()=>
   setBigText(!document.documentElement.classList.contains('bigtext')));
 zoomDiv.appendChild(zoomBtn);
 foot.appendChild(zoomDiv);
-setBigText((()=>{ try { return localStorage.getItem(ZOOM_KEY)==='1'; } catch { return false; } })());
+setBigText((()=>{ try { return (localStorage.getItem(ZOOM_KEY) ?? legacyZoom)==='1'; } catch { return false; } })());
 
 // --- offline: install the service worker ---
 if ('serviceWorker' in navigator){

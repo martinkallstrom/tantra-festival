@@ -1,0 +1,11 @@
+# Redirect worker occupying the old hostname (tantra-festival.workers.dev).
+# No bindings, no assets, and crons explicitly cleared so the old hourly
+# trigger doesn't invoke a worker with no scheduled handler.
+name = "tantra-festival"
+main = "redirect/worker.js"
+account_id = "129f968637a65720067f29f9cf177a0e"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[triggers]
+crons = []
