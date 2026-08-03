@@ -98,6 +98,7 @@ function renderSelector(origin) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#241a1f">
+<meta name="robots" content="noindex, nofollow">
 <meta property="og:title" content="Ängsbacka festival schedules">
 <meta property="og:description" content="Mobile-friendly schedules for Ängsbacka festivals.">
 <meta property="og:url" content="${origin}/">
@@ -364,6 +365,7 @@ export default {
             headers: {
               'content-type': 'text/html;charset=utf-8',
               'cache-control': 'public, max-age=300',
+              'x-robots-tag': 'noindex, nofollow',
             },
           });
       }
