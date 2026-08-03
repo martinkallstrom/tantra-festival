@@ -26,6 +26,7 @@ export function renderPage(data, origin, fest) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="${t.tokens.bg}">
+<meta name="robots" content="noindex, nofollow">
 <meta name="description" content="${fest.metaDescription}">
 <title>${fest.title}</title>
 <meta property="og:type" content="website">
