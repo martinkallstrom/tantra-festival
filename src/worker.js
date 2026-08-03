@@ -1,25 +1,15 @@
 import { buildSchedule, assignIds, slugify } from './parse.js';
 import { renderPage } from './page.js';
+import { FESTIVALS, FESTIVAL_LIST, pickFestival } from './festivals.js';
 import leaders from './leaders.json';
 
-const PUB_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTbrtJeSyuzedXiLglt5h0R6UXqdZTqzFT85ONTJbQ0AhxxdEi2_JsRui59zv17o7V2aRg2xhTFhPZO/pub';
-const KV_KEY = 'schedule-v1';
+const kvKey = (slug) => 'schedule-' + slug;
+const LEGACY_KV_KEY = 'schedule-v1'; // pre-multi-festival tantra cache
 
-// Fallback tab list in case tab discovery from pubhtml ever breaks.
-const FALLBACK_TABS = [
-  { name: 'Tue 14/7', gid: '1827807072' },
-  { name: 'Wed 15/7', gid: '925929911' },
-  { name: 'Thu 16/7', gid: '930766156' },
-  { name: 'Fri 17/7', gid: '1895701359' },
-  { name: 'Sat 18/7', gid: '1621748034' },
-  { name: 'Sun 19/7', gid: '1542967329' },
-  { name: 'CODES', gid: '434437882' },
-];
-
-async function discoverTabs() {
+async function discoverTabs(fest) {
   try {
-    const res = await fetch(`${PUB_BASE}html`, { headers: { accept: 'text/html' } });
-    if (!res.ok) return FALLBACK_TABS;
+    const res = await fetch(`${fest.sheet.pubBase}html`, { headers: { accept: 'text/html' } });
+    if (!res.ok) return fest.sheet.fallbackTabs;
     const html = await res.text();
     const tabs = [];
     for (const m of html.matchAll(/items\.push\(\{name: "((?:[^"\\]|\\.)*)", pageUrl: "((?:[^"\\]|\\.)*)"/g)) {
@@ -27,38 +17,42 @@ async function discoverTabs() {
       const gid = (m[2].match(/gid(?:=|\\x3d)(\d+)/) || [])[1];
       if (gid) tabs.push({ name, gid });
     }
-    return tabs.length ? tabs : FALLBACK_TABS;
+    return tabs.length ? tabs : fest.sheet.fallbackTabs;
   } catch {
-    return FALLBACK_TABS;
+    return fest.sheet.fallbackTabs;
   }
 }
 
-async function fetchSchedule() {
-  const tabs = await discoverTabs();
+async function fetchSchedule(fest) {
+  const tabs = await discoverTabs(fest);
   const sheets = await Promise.all(tabs.map(async (t) => {
-    const res = await fetch(`${PUB_BASE}?gid=${t.gid}&single=true&output=csv`);
+    const res = await fetch(`${fest.sheet.pubBase}?gid=${t.gid}&single=true&output=csv`);
     if (!res.ok) throw new Error(`csv fetch failed for ${t.name}: ${res.status}`);
     return { ...t, csv: await res.text() };
   }));
-  const data = buildSchedule(sheets);
+  const data = buildSchedule(sheets, { codes: fest.codes, extraJunk: fest.parse.extraJunk });
   const eventCount = data.days.reduce((n, d) => n + d.events.length, 0);
-  if (!data.days.length || eventCount < 20) {
+  if (!data.days.length || eventCount < fest.minEvents) {
     throw new Error(`parsed schedule looks broken (${data.days.length} days, ${eventCount} events)`);
   }
   data.updatedAt = new Date().toISOString();
   return data;
 }
 
-async function refresh(env) {
-  const data = await fetchSchedule();
-  await env.SCHEDULE.put(KV_KEY, JSON.stringify(data));
+async function refresh(env, fest) {
+  const data = await fetchSchedule(fest);
+  await env.SCHEDULE.put(kvKey(fest.slug), JSON.stringify(data));
   return data;
 }
 
-async function getData(env) {
-  const cached = await env.SCHEDULE.get(KV_KEY, 'json');
-  if (cached) return assignIds(cached); // backfill ids on pre-id cache entries
-  return refresh(env);
+async function getData(env, fest) {
+  const cached = await env.SCHEDULE.get(kvKey(fest.slug), 'json');
+  if (cached) return assignIds(cached);
+  if (fest.slug === 'tantra') {
+    const legacy = await env.SCHEDULE.get(LEGACY_KV_KEY, 'json');
+    if (legacy) return assignIds(legacy);
+  }
+  return refresh(env, fest);
 }
 
 function eventIndex(data) {
@@ -69,12 +63,72 @@ function eventIndex(data) {
   return map;
 }
 
-// Unofficial, unlinked leaderboard of hearted sessions, filterable by day
-// and rankable by workshop or facilitator. Data is inlined; pills filter
-// client-side like the main app.
-function renderTop(data, rows, leaderMap) {
+const splitFacs = (f) => f.split(/[&,]/).map((s) => s.trim()).filter(Boolean);
+
+// Only ship the leader bios whose names actually appear in this festival's
+// schedule — the registry is shared across festivals.
+function leadersFor(data) {
+  const names = new Set(
+    data.days.flatMap((d) => d.events.flatMap((e) => (e.facilitators || []).flatMap(splitFacs))));
+  const out = {};
+  for (const [k, v] of Object.entries(leaders)) if (names.has(k)) out[k] = v;
+  return out;
+}
+
+const switcher = FESTIVAL_LIST.map((f) => ({ slug: f.slug, shortName: f.shortName }));
+
+function cookieFestival(request) {
+  const m = (request.headers.get('cookie') || '').match(/(?:^|;\s*)festival=([a-z-]+)/);
+  return m && FESTIVALS[m[1]] ? FESTIVALS[m[1]] : null;
+}
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Themed chooser shown at / when no festival is ongoing or upcoming.
+function renderSelector(origin) {
+  const cards = FESTIVAL_LIST.map((f) => `
+    <a class="card" href="/${f.slug}/" style="--a:${f.theme.tokens.accent};--s:${f.theme.tokens.surface};--t:${f.theme.tokens.text};--l:${f.theme.tokens.line}">
+      <span class="dot"></span>
+      <span class="name">${esc(f.name)}</span>
+      <span class="dates">${esc(f.eyebrow)}</span>
+    </a>`).join('\n');
+  return `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#241a1f">
+<meta property="og:title" content="Ängsbacka festival schedules">
+<meta property="og:description" content="Mobile-friendly schedules for Ängsbacka festivals.">
+<meta property="og:url" content="${origin}/">
+<title>Ängsbacka festival schedules</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,500&family=Karla:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#241a1f;color:#f4ece1;font:400 16px/1.5 Karla,system-ui,sans-serif;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.wrap{max-width:460px;width:100%}
+h1{font:italic 500 30px Fraunces,serif;margin-bottom:4px}
+p{color:#b9a8a0;font-size:14px;margin-bottom:22px}
+.card{display:block;background:var(--s);color:var(--t);border:1px solid var(--l);
+  border-left:5px solid var(--a);border-radius:14px;padding:16px 18px;margin:10px 0;
+  text-decoration:none}
+.card .name{display:block;font-weight:700;font-size:18px}
+.card .dates{display:block;font-size:11.5px;letter-spacing:.1em;color:var(--a);margin-top:3px}
+</style></head><body><div class="wrap">
+<h1>Ängsbacka festivals</h1>
+<p>Pick a festival schedule.</p>
+${cards}
+</div></body></html>`;
+}
+
+// Unofficial leaderboard, per festival, themed from its config.
+function renderTop(data, rows, leaderMap, fest) {
   const idx = eventIndex(data);
-  const splitFacs = (f) => f.split(/[&,]/).map((s) => s.trim()).filter(Boolean);
+  const base = '/' + fest.slug + '/';
+  const t = fest.theme.tokens;
   const items = rows
     .filter((r) => idx.has(r.id))
     .map((r) => {
@@ -83,52 +137,52 @@ function renderTop(data, rows, leaderMap) {
         id: r.id, n: r.n, title: ev.title,
         day: (day.weekday || '').slice(0, 3).toLowerCase(),
         time: day.weekday.slice(0, 3) + ' ' + (ev.allDay ? 'all day' : ev.time),
-        venue: ev.venue.replace(' (CAFÉ ATTIC)', ''),
+        venue: ev.venue.replace(/\s*\(.*\)$/, ''),
         fac: ev.facilitators.flatMap(splitFacs),
       };
     });
   const days = data.days.map((d) => ({
     key: (d.weekday || '').slice(0, 3).toLowerCase(),
-    label: d.tabName.replace('/7', ''),
+    label: d.tabName.replace(/\/\d+$/, ''),
   }));
   const leaderSlugs = {};
   Object.keys(leaderMap || {}).forEach((k) => { leaderSlugs[k] = slugify(k); });
-  const json = JSON.stringify({ items, days, leaderSlugs }).replace(/</g, '\\u003c');
+  const json = JSON.stringify({ items, days, leaderSlugs, base }).replace(/</g, '\\u003c');
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#2a1019">
-<title>Top picks · Tantra Festival</title>
+<meta name="theme-color" content="${t.bg}">
+<title>Top picks · ${fest.name}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#2a1019;color:#f9edd5;font:400 16px/1.5 Karla,system-ui,sans-serif;padding:28px 16px 60px}
+body{background:${t.bg};color:${t.text};font:400 16px/1.5 Karla,system-ui,sans-serif;padding:28px 16px 60px}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .wrap{max-width:640px;margin:0 auto}
-h1{font-size:24px;color:#f2a93b}
-.sub{color:#d4b29e;font-size:13px;margin:4px 0 16px}
+h1{font-size:24px;color:${t['accent-2']}}
+.sub{color:${t.muted};font-size:13px;margin:4px 0 16px}
 .pills{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px}
 .pill{
   flex:none;padding:5px 11px;border-radius:999px;
-  border:1px solid #5c2d36;color:#d4b29e;
+  border:1px solid ${t.line};color:${t.muted};background:${t.surface};
   font-size:12.5px;font-weight:700;white-space:nowrap;
 }
-.pill[aria-pressed="true"]{background:#e5518d;border-color:#e5518d;color:#38101f}
-.pills.views .pill[aria-pressed="true"]{background:#f2a93b;border-color:#f2a93b;color:#3a2306}
+.pill[aria-pressed="true"]{background:${t.accent};border-color:${t.accent};color:${t['on-accent']}}
+.pills.views .pill[aria-pressed="true"]{background:${t['accent-2']};border-color:${t['accent-2']};color:${t['on-accent-2']}}
 ol{list-style:none;margin-top:14px}
-li{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid #5c2d36}
-.rank{flex:none;width:28px;text-align:right;font-weight:700;color:#97705f}
-li:nth-child(-n+3) .rank{color:#f2a93b}
+li{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid ${t.line}}
+.rank{flex:none;width:28px;text-align:right;font-weight:700;color:${t.faint}}
+li:nth-child(-n+3) .rank{color:${t['accent-2']}}
 .what{flex:1;min-width:0}
-.what a{color:#f9edd5;text-decoration:none;font-weight:700}
-.what span.t{color:#f9edd5;font-weight:700}
-.what small{display:block;color:#d4b29e;font-size:12.5px}
-.n{flex:none;font-weight:700;color:#e5518d}
-.empty{color:#d4b29e;padding:40px 0;text-align:center;font-style:italic}
+.what a{color:${t.text};text-decoration:none;font-weight:700}
+.what span.t{color:${t.text};font-weight:700}
+.what small{display:block;color:${t.muted};font-size:12.5px}
+.n{flex:none;font-weight:700;color:${t.accent}}
+.empty{color:${t.muted};padding:40px 0;text-align:center;font-style:italic}
 </style></head><body><div class="wrap">
 <h1>Unofficial top picks</h1>
 <p class="sub">Live count of ♥ marks from attendees' devices. Anonymous, unscientific, lovingly unofficial.</p>
@@ -186,7 +240,7 @@ function render(){
   let rows;
   if (state.view==='workshop'){
     rows = items.slice().sort((a,b)=>(b.n-a.n) || a.title.localeCompare(b.title))
-      .map(i=>({ n:i.n, href:'/?w='+i.id, label:i.title,
+      .map(i=>({ n:i.n, href:TOP.base+'?w='+i.id, label:i.title,
         sub:i.time+' · '+i.venue+(i.fac.length?' · '+i.fac.join(' & '):'') }));
   } else {
     const agg = new Map();
@@ -197,7 +251,7 @@ function render(){
     }));
     rows = [...agg.entries()].sort((a,b)=>(b[1].n-a[1].n) || a[0].localeCompare(b[0]))
       .map(([name,e])=>({ n:e.n,
-        href: TOP.leaderSlugs[name] ? '/?l='+TOP.leaderSlugs[name] : null,
+        href: TOP.leaderSlugs[name] ? TOP.base+'?l='+TOP.leaderSlugs[name] : null,
         label:name,
         sub:e.c+(e.c===1?' hearted workshop':' hearted workshops') }));
   }
@@ -226,54 +280,102 @@ render();
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const path = url.pathname;
     try {
-      if (url.pathname === '/data.json') {
-        return Response.json(await getData(env), {
+      // Root: cookie choice, else date-based, else selector page.
+      if (path === '/') {
+        const fest = cookieFestival(request) || pickFestival();
+        if (fest) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location: '/' + fest.slug + '/' + url.search,
+              'cache-control': 'no-store',
+            },
+          });
+        }
+        return new Response(renderSelector(url.origin), {
+          headers: { 'content-type': 'text/html;charset=utf-8', 'cache-control': 'no-store' },
+        });
+      }
+
+      // Legacy root-level routes from the single-festival era.
+      const legacy = path.match(/^\/(data\.json|refresh|vote|top)$/);
+      if (legacy) {
+        const fest = cookieFestival(request) || pickFestival() || FESTIVALS.tantra;
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: '/' + fest.slug + '/' + legacy[1] + url.search,
+            'cache-control': 'no-store',
+          },
+        });
+      }
+
+      const m = path.match(/^\/([a-z-]+)(\/.*)?$/);
+      const fest = m && FESTIVALS[m[1]];
+      if (!fest) return new Response('Not found', { status: 404 });
+      if (m[2] == null) {
+        return new Response(null, {
+          status: 301,
+          headers: { location: path + '/' + url.search },
+        });
+      }
+      const sub = m[2];
+
+      if (sub === '/data.json') {
+        return Response.json(await getData(env, fest), {
           headers: { 'cache-control': 'public, max-age=300' },
         });
       }
-      if (url.pathname === '/refresh') {
-        const data = await refresh(env);
-        return Response.json({ ok: true, updatedAt: data.updatedAt,
+      if (sub === '/refresh') {
+        const data = await refresh(env, fest);
+        return Response.json({ ok: true, festival: fest.slug, updatedAt: data.updatedAt,
           events: data.days.reduce((n, d) => n + d.events.length, 0) });
       }
-      if (url.pathname === '/vote' && request.method === 'POST') {
+      if (sub === '/vote' && request.method === 'POST') {
         let body;
         try { body = await request.json(); } catch { body = null; }
         const id = body && typeof body.id === 'string' && body.id.length <= 80 ? body.id : null;
         if (!id) return new Response('Bad request', { status: 400 });
-        const data = await getData(env);
+        const data = await getData(env, fest);
         if (!eventIndex(data).has(id)) return new Response('Unknown workshop', { status: 400 });
         const delta = body.on ? 1 : -1;
         await env.VOTES.prepare(
-          'INSERT INTO votes (id, n) VALUES (?1, MAX(0, ?2)) ' +
-          'ON CONFLICT(id) DO UPDATE SET n = MAX(0, n + ?2)'
-        ).bind(id, delta).run();
+          'INSERT INTO votes (festival, id, n) VALUES (?1, ?2, MAX(0, ?3)) ' +
+          'ON CONFLICT(festival, id) DO UPDATE SET n = MAX(0, n + ?3)'
+        ).bind(fest.slug, id, delta).run();
         return new Response(null, { status: 204 });
       }
-      if (url.pathname === '/top') {
+      if (sub === '/top') {
         const [data, res] = await Promise.all([
-          getData(env),
-          env.VOTES.prepare('SELECT id, n FROM votes WHERE n > 0').all(),
+          getData(env, fest),
+          env.VOTES.prepare('SELECT id, n FROM votes WHERE festival = ?1 AND n > 0')
+            .bind(fest.slug).all(),
         ]);
-        return new Response(renderTop(data, res.results || [], leaders), {
+        return new Response(renderTop(data, res.results || [], leadersFor(data), fest), {
           headers: { 'content-type': 'text/html;charset=utf-8', 'cache-control': 'no-store' },
         });
       }
-      if (url.pathname !== '/') return new Response('Not found', { status: 404 });
-      const data = await getData(env);
-      return new Response(renderPage({ ...data, leaders }, url.origin), {
-        headers: {
-          'content-type': 'text/html;charset=utf-8',
-          'cache-control': 'public, max-age=300',
-        },
-      });
+      if (sub === '/') {
+        const data = await getData(env, fest);
+        return new Response(
+          renderPage({ ...data, leaders: leadersFor(data), switcher }, url.origin, fest), {
+            headers: {
+              'content-type': 'text/html;charset=utf-8',
+              'cache-control': 'public, max-age=300',
+            },
+          });
+      }
+      return new Response('Not found', { status: 404 });
     } catch (err) {
       return new Response(`Schedule temporarily unavailable: ${err.message}`, { status: 503 });
     }
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(refresh(env));
+    ctx.waitUntil(
+      Promise.allSettled(FESTIVAL_LIST.map((fest) => refresh(env, fest)))
+    );
   },
 };

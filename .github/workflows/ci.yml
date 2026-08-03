@@ -35,6 +35,9 @@ jobs:
         if: env.CLOUDFLARE_API_TOKEN != ''
         with:
           node-version: 24
-      - name: Deploy to Cloudflare Workers
+      - name: Deploy main worker (angsbacka)
         if: env.CLOUDFLARE_API_TOKEN != ''
         run: npx --yes wrangler@4 deploy
+      - name: Deploy redirect worker (old hostname)
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npx --yes wrangler@4 deploy -c wrangler.redirect.toml

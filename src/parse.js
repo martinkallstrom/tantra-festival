@@ -42,12 +42,51 @@ const BANNER_RE = /(BREAKFAST|LUNCH|DINNER|MORNING GATHERING|OPENING CEREMONY|CL
 const TIME_RANGE_RE = /(\d{1,2})[:.](\d{1,2})\s*[-–—]\s*(\d{1,2})[:.](\d{1,2})/;
 const TIME_START_RE = /^\W*\d{1,2}[:.]\d{1,2}\s*[-–—]\s*\d{1,2}[:.]\d{1,2}\s*$/;
 
-function isJunk(line) {
+function isJunk(line, junk = JUNK) {
   const t = line.trim();
   if (!t) return true;
-  if (JUNK.has(t.toLowerCase())) return true;
+  if (junk.has(t.toLowerCase())) return true;
   if (/^[\W_]+$/u.test(t) && !/\p{Emoji_Presentation}/u.test(t)) return true;
   return false;
+}
+
+// Per-festival parsing hooks: codes recognizer (list of known codes vs a
+// "chili" intensity rating) and extra junk/placeholder words.
+function makeOptions(opts = {}) {
+  const codesCfg = opts.codes || { kind: 'list', known: [...KNOWN_CODES] };
+  let codesLine, codesParse;
+  if (codesCfg.kind === 'chili') {
+    // "2 CHILIS", possibly with audience tags: "2 CHILI - WOMEN ONLY"
+    const RE = /^([0-9])\s*CHILIS?\b\s*(?:[-–,]\s*(.+))?$/i;
+    codesLine = (line) => RE.test(line.trim());
+    codesParse = (line) => {
+      const m = line.trim().match(RE);
+      const n = +m[1];
+      const codes = [n === 1 || n === 0 ? n + ' CHILI' : n + ' CHILIS'];
+      if (m[2]) {
+        m[2].split(/[-–,]/).map((s) => s.trim()).filter(Boolean)
+          .forEach((tag) => codes.push(tag.toUpperCase()));
+      }
+      return codes;
+    };
+  } else {
+    const known = new Set((codesCfg.known || [...KNOWN_CODES]).map((s) => s.toUpperCase()));
+    codesLine = (line) => {
+      const parts = line.split(',').map((s) => s.trim()).filter(Boolean);
+      if (!parts.length) return false;
+      return parts.every((p) => known.has(p.toUpperCase()));
+    };
+    codesParse = (line) => line.split(',').map((s) => s.trim()).filter(Boolean)
+      .map((s) => s.toUpperCase());
+  }
+  const junk = new Set([...JUNK, ...(opts.extraJunk || []).map((s) => s.toLowerCase())]);
+  return {
+    codesLine, codesParse, junk,
+    codesLegend: codesCfg.legend || null,
+    // chili sheets put the rating BEFORE the description (title/subtitle/
+    // chili/description/facilitator); the codes-list sheets put codes after.
+    codesFirst: opts.codesFirst ?? codesCfg.kind === 'chili',
+  };
 }
 
 function isBanner(text) {
@@ -88,10 +127,10 @@ function looksLikeLocation(line) {
 // Parse one event's worth of lines (time already stripped) into fields.
 // Returns [event, leftoverLines] — leftover appears when a second event is
 // embedded in the same cell run (recognised by a second codes line).
-function assignFields(lines) {
+function assignFields(lines, o) {
   const ev = { title: '', subtitle: '', desc: '', codes: [], facilitators: [] };
   let i = 0;
-  const codesIdx = lines.findIndex(isCodesLine);
+  const codesIdx = lines.findIndex(o.codesLine);
   const contentEnd = codesIdx === -1 ? lines.length : codesIdx;
   const content = lines.slice(0, contentEnd);
   if (content.length) ev.title = content[0];
@@ -106,10 +145,26 @@ function assignFields(lines) {
   }
   ev.desc = descLines.join(' ').trim();
   let leftover = [];
-  if (codesIdx !== -1) {
-    ev.codes = parseCodes(lines[codesIdx]);
+  if (codesIdx !== -1 && o.codesFirst) {
+    // codes-before-description layout: everything after the codes line is
+    // description, except trailing short name-like lines (facilitators).
+    ev.codes = o.codesParse(lines[codesIdx]);
     const after = lines.slice(codesIdx + 1);
-    const nextCodes = after.findIndex(isCodesLine);
+    const facs = [];
+    if (after.length > 1) {
+      const last = after[after.length - 1];
+      if (last.length <= 40 && !/[.!?]$/.test(last) && last !== last.toUpperCase()) {
+        facs.unshift(after.pop());
+      }
+    }
+    ev.facilitators = facs;
+    ev.desc = [ev.desc, after.join(' ')].filter(Boolean).join(' ').trim();
+    return [ev, []];
+  }
+  if (codesIdx !== -1) {
+    ev.codes = o.codesParse(lines[codesIdx]);
+    const after = lines.slice(codesIdx + 1);
+    const nextCodes = after.findIndex(o.codesLine);
     if (nextCodes > 1) {
       // A second, time-less event is embedded right after the facilitator.
       ev.facilitators = after.slice(0, 1);
@@ -128,7 +183,7 @@ function assignFields(lines) {
   return [ev, leftover];
 }
 
-function parseDaySheet(rows, tabName) {
+function parseDaySheet(rows, tabName, o) {
   const day = { tabName, weekday: '', dateLabel: '', theme: '', events: [], notices: [] };
   const titleCell = (rows[0] && rows[0][0]) || '';
   const tm = titleCell.match(/^([A-ZÅÄÖ]+)\s*-\s*(.+?\d{4})\s*(?:-\s*(.*))?$/);
@@ -136,6 +191,15 @@ function parseDaySheet(rows, tabName) {
     day.weekday = tm[1].charAt(0) + tm[1].slice(1).toLowerCase();
     day.dateLabel = tm[2].trim();
     day.theme = (tm[3] || '').trim();
+  } else {
+    // Fallback format: letter-spaced weekday ("W E D N E S D A Y") in the
+    // first cell, date ("August 5, 2026") in a later cell, no theme.
+    const compact = titleCell.replace(/\s+/g, '');
+    if (/^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)$/i.test(compact)) {
+      day.weekday = compact.charAt(0).toUpperCase() + compact.slice(1).toLowerCase();
+      const dateCell = (rows[0] || []).find((c) => /[A-Za-z]+ \d{1,2}, \d{4}/.test(c || ''));
+      if (dateCell) day.dateLabel = dateCell.match(/[A-Za-z]+ \d{1,2}, \d{4}/)[0];
+    }
   }
 
   const headerIdx = rows.findIndex((r) => r.some((c) => /BIG BARN/i.test(c || '')));
@@ -158,7 +222,7 @@ function parseDaySheet(rows, tabName) {
       const cell = (rows[r] && rows[r][col]) || '';
       for (const raw of cell.split('\n')) {
         const line = raw.replace(/\s+/g, ' ').trim();
-        if (!line || isJunk(line)) continue;
+        if (!line || isJunk(line, o.junk)) continue;
         stream.push({ row: r, text: line });
       }
     }
@@ -181,7 +245,7 @@ function parseDaySheet(rows, tabName) {
       const time = current.allDay ? null : normTime(current.timeLine);
       let lines = current.lines.map((l) => l.text);
       while (lines.length) {
-        const [ev, leftover] = assignFields(lines);
+        const [ev, leftover] = assignFields(lines, o);
         if (ev.title) {
           day.events.push({
             ...ev,
@@ -207,10 +271,10 @@ function parseDaySheet(rows, tabName) {
       // after >=5 blank rows, so later stray lines don't glom onto it.
       if (current) {
         const gap = row - current.lastRow;
-        const hasCodes = current.lines.some((l) => isCodesLine(l.text));
+        const hasCodes = current.lines.some((l) => o.codesLine(l.text));
         // An all-caps location header ("HEART TENT", "MEET BY CAFE STAIRS")
         // always starts the next block, even after a small gap.
-        const locHeader = current.lines.length >= 2 && !isCodesLine(text) &&
+        const locHeader = current.lines.length >= 2 && !o.codesLine(text) &&
           text === text.toUpperCase() && looksLikeLocation(text);
         if ((gap >= 4 && hasCodes) || gap >= 6 || locHeader) flush();
       }
@@ -269,18 +333,22 @@ function parseCodesSheet(rows) {
 }
 
 // sheets: [{name, gid, csv}] in tab order; CODES tab detected by name.
-export function buildSchedule(sheets) {
+// opts: { codes: {kind:'list'|'chili', known?, legend?}, extraJunk: [] }
+export function buildSchedule(sheets, opts = {}) {
+  const o = makeOptions(opts);
   const out = { days: [], codes: [] };
   for (const sheet of sheets) {
     const rows = parseCSV(sheet.csv);
     if (/codes/i.test(sheet.name)) {
       out.codes = parseCodesSheet(rows);
     } else {
-      const day = parseDaySheet(rows, sheet.name);
+      const day = parseDaySheet(rows, sheet.name, o);
       day.gid = sheet.gid;
       out.days.push(day);
     }
   }
+  // No CODES tab (e.g. chili festivals): legend comes from config.
+  if (!out.codes.length && o.codesLegend) out.codes = o.codesLegend;
   return assignIds(out);
 }
 

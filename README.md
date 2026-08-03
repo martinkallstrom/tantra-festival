@@ -1,12 +1,14 @@
-# Ängsbacka Tantra Festival Schedule
+# Ängsbacka Festival Schedules
 
 A fast, mobile-first schedule for the [Ängsbacka](https://www.angsbacka.com) Tantra
 Festival, July 14–19 2026 — built from the festival's own published Google Sheet and
 served from a Cloudflare Worker at the edge.
 
-**Live: https://tantra-festival.kindship-ai.workers.dev**
+**Live: https://angsbacka.kindship-ai.workers.dev** — `/` routes to the ongoing or
+next festival (a cookie remembers your last choice); `/tantra/` and `/sexsibility/`
+are direct. The old tantra-festival host 301-redirects here.
 
-![Social preview](public/og.jpg)
+![Social preview](public/og-tantra.jpg)
 
 ## Why
 
@@ -138,3 +140,12 @@ Code is [MIT licensed](LICENSE). Schedule content and workshop data belong to
 portraits and bios remain the property of their respective owners. Built by
 Martin Källström (martin@kindship.ai) with
 [Claude Code](https://claude.com/claude-code).
+
+## Adding a festival
+
+One entry in `src/festivals.js` (copy, dates, sheet gids, codes system, theme tokens,
+venue colors), per-festival assets in `public/` (`bg-<slug>.jpg`, `og-<slug>.jpg`,
+icons, `manifest-<slug>.webmanifest`), fixtures + a case in `test/ci-test.mjs`.
+Themes are semantic tokens (light or dark both supported); the parser takes
+per-festival options for codes systems (known-codes list vs chili ratings) and
+sheet-format quirks. Leader bios are shared across festivals by facilitator name.
