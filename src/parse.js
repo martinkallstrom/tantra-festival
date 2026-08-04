@@ -35,12 +35,20 @@ const KNOWN_CODES = new Set([
   'POSSIBLY NUDITY', 'BOLD', 'FEMALE', 'MALE',
 ]);
 
-const JUNK = new Set(['title', 'subtitle', 'description', 'level', 'wsl', '<', '_:: m.', 'cv', 'blocked for check in']);
+const JUNK = new Set(['title', 'subtitle', 'description', 'level', 'theme', 'wsl', '<', '_:: m.', 'cv', 'blocked for check in']);
 
 const BANNER_RE = /(BREAKFAST|LUNCH|DINNER|MORNING GATHERING|OPENING CEREMONY|CLOSING CEREMONY|CEREMONY|SHARING|CHECK[- ]IN|SILENCE ON SITE)/;
 
 const TIME_RANGE_RE = /(\d{1,2})[:.](\d{1,2})\s*[-–—]\s*(\d{1,2})[:.](\d{1,2})/;
-const TIME_START_RE = /^\W*\d{1,2}[:.]\d{1,2}\s*[-–—]\s*\d{1,2}[:.]\d{1,2}\s*$/;
+const RANGE_SRC = '\\d{1,2}[:.]\\d{1,2}\\s*[-–—]\\s*\\d{1,2}[:.]\\d{1,2}';
+// One or more ranges: "10.45 - 15.00 and 18.30 - 00.00"
+const MULTI_RANGE_SRC = `${RANGE_SRC}(?:\\s*(?:and|&|\\+|,)\\s*${RANGE_SRC})*`;
+const TIME_START_RE = new RegExp(`^\\W*${MULTI_RANGE_SRC}\\s*$`);
+// A time (or times) followed by inline text: "10:45 - 13:00 Drop-in photo".
+// The lookahead stops backtracking from splitting a multi-range time line
+// ("10.45 - 15.00 and 18.30 - 00.00") into time + "and …" text.
+const TIME_PREFIX_RE = new RegExp(
+  `^(${MULTI_RANGE_SRC})\\s+(?!(?:and|&|\\+|,)\\s*\\d)(\\S.*)$`);
 
 function isJunk(line, junk = JUNK) {
   const t = line.trim();
@@ -91,9 +99,10 @@ function makeOptions(opts = {}) {
 
 function isBanner(text) {
   if (!BANNER_RE.test(text.toUpperCase())) return false;
-  // Real banners are shouted or carry a time range; regular event titles that
-  // merely contain a keyword ("Ceremony of Unity") are not banners.
-  return TIME_RANGE_RE.test(text) || text === text.toUpperCase();
+  // Real banners always carry a time range ("13:00 - 14:00 LUNCH"). An
+  // all-caps rule is too greedy: sheets that shout their subtitles produce
+  // titles like "GIBBERISH CEREMONY" or "QUEER SHARING" that are not banners.
+  return TIME_RANGE_RE.test(text);
 }
 
 function isCodesLine(line) {
@@ -108,14 +117,17 @@ function parseCodes(line) {
 }
 
 function normTime(str) {
-  const m = str.match(TIME_RANGE_RE);
-  if (!m) return null;
-  const [, h1, m1, h2, m2] = m;
+  const ranges = [...str.matchAll(new RegExp(TIME_RANGE_RE.source, 'g'))];
+  if (!ranges.length) return null;
   const pad = (s) => s.padStart(2, '0');
+  const label = ranges
+    .map(([, h1, m1, h2, m2]) => `${+h1}:${pad(m1)}–${+h2}:${pad(m2)}`)
+    .join(' & ');
+  const first = ranges[0], last = ranges[ranges.length - 1];
   return {
-    label: `${+h1}:${pad(m1)}–${+h2}:${pad(m2)}`,
-    start: +h1 * 60 + +m1,
-    end: +h2 * 60 + +m2,
+    label,
+    start: +first[1] * 60 + +first[2],
+    end: +last[3] * 60 + +last[4],
   };
 }
 
@@ -223,6 +235,14 @@ function parseDaySheet(rows, tabName, o) {
       for (const raw of cell.split('\n')) {
         const line = raw.replace(/\s+/g, ' ').trim();
         if (!line || isJunk(line, o.junk)) continue;
+        // "10:45 - 13:00 Drop-in photo" → a time line plus a content line,
+        // unless the whole line is a banner ("13:00 - 14:00 LUNCH").
+        const tp = !isBanner(line) && line.match(TIME_PREFIX_RE);
+        if (tp) {
+          stream.push({ row: r, text: tp[1] });
+          stream.push({ row: r, text: tp[2] });
+          continue;
+        }
         stream.push({ row: r, text: line });
       }
     }
@@ -273,9 +293,11 @@ function parseDaySheet(rows, tabName, o) {
         const gap = row - current.lastRow;
         const hasCodes = current.lines.some((l) => o.codesLine(l.text));
         // An all-caps location header ("HEART TENT", "MEET BY CAFE STAIRS")
-        // always starts the next block, even after a small gap.
+        // always starts the next block, even after a small gap. Lines with
+        // times ("INTRO FROM 19.30 TO 20.20") are content, not headers.
         const locHeader = current.lines.length >= 2 && !o.codesLine(text) &&
-          text === text.toUpperCase() && looksLikeLocation(text);
+          text === text.toUpperCase() && looksLikeLocation(text) &&
+          !TIME_RANGE_RE.test(text) && !/\d{1,2}[:.]\d{2}/.test(text);
         if ((gap >= 4 && hasCodes) || gap >= 6 || locHeader) flush();
       }
       if (isBanner(text)) {
