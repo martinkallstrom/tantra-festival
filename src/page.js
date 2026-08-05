@@ -666,10 +666,10 @@ DATA.days.forEach((d,i)=>{
   const b = h('button','daybtn',d.tabName.replace(/\\/\\d+$/,''));
   b.dataset.day = String(i);
   b.setAttribute('aria-pressed', String(i===state.day));
-  b.addEventListener('click',()=>{ setDay(i); });
+  b.addEventListener('click',()=>{ setDay(i, {scrollNow:true}); });
   daysNav.appendChild(b);
 });
-function setDay(i){
+function setDay(i, opts){
   exitFavview();
   exitNow();
   state.day = i;
@@ -678,7 +678,31 @@ function setDay(i){
   document.querySelectorAll('section.day').forEach((s,j)=>s.classList.toggle('active', i===-1 || j===i));
   applyFilters();
   updateURL();
-  window.scrollTo({top:0});
+  // tapping today's pill lands you at what's happening right now
+  if (opts && opts.scrollNow && i === todayIdx()) scrollToNow();
+  else window.scrollTo({top:0});
+}
+
+// Scroll the first ongoing-or-upcoming event of the active day under the
+// header; falls back to top when the day is over or hasn't produced one.
+function scrollToNow(){
+  const now = new Date();
+  const mins = now.getHours()*60 + now.getMinutes();
+  const sec = document.querySelector('section.day.active');
+  const target = sec && [...sec.querySelectorAll('.ev')].find(el=>{
+    if (el.offsetParent === null) return false;
+    const s = +el.dataset.start;
+    if (s < 0 || s >= 1440) return false;
+    let e = el.dataset.end ? +el.dataset.end : s + 90;
+    if (e <= s) e += 1440;
+    return e > mins;
+  });
+  if (!target){ window.scrollTo({top:0}); return; }
+  const header = document.querySelector('header.top');
+  const stickyH = header && getComputedStyle(header).position === 'sticky'
+    ? header.offsetHeight : 0;
+  const y = target.getBoundingClientRect().top + window.scrollY - stickyH - 10;
+  window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
 }
 
 // --- "Now & next": ongoing + starting within 90 minutes, today only ---

@@ -195,24 +195,25 @@ function assignFields(lines, o) {
   return [ev, leftover];
 }
 
+const WEEKDAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
 function parseDaySheet(rows, tabName, o) {
   const day = { tabName, weekday: '', dateLabel: '', theme: '', events: [], notices: [] };
-  const titleCell = (rows[0] && rows[0][0]) || '';
-  const tm = titleCell.match(/^([A-ZÅÄÖ]+)\s*-\s*(.+?\d{4})\s*(?:-\s*(.*))?$/);
-  if (tm) {
-    day.weekday = tm[1].charAt(0) + tm[1].slice(1).toLowerCase();
-    day.dateLabel = tm[2].trim();
-    day.theme = (tm[3] || '').trim();
-  } else {
-    // Fallback format: letter-spaced weekday ("W E D N E S D A Y") in the
-    // first cell, date ("August 5, 2026") in a later cell, no theme.
-    const compact = titleCell.replace(/\s+/g, '');
-    if (/^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)$/i.test(compact)) {
-      day.weekday = compact.charAt(0).toUpperCase() + compact.slice(1).toLowerCase();
-      const dateCell = (rows[0] || []).find((c) => /[A-Za-z]+ \d{1,2}, \d{4}/.test(c || ''));
-      if (dateCell) day.dateLabel = dateCell.match(/[A-Za-z]+ \d{1,2}, \d{4}/)[0];
-    }
-  }
+  // The title row keeps changing shape between (and during!) festivals:
+  //   "WEDNESDAY - July 15, 2026 - Boundaries"        (weekday-date-theme)
+  //   "W E D N E S D A Y" ... "August 5, 2026"        (letter-spaced, split cells)
+  //   "T U E S D A Y - August 4th, 2026"              (letter-spaced + ordinal)
+  // and the whole grid sometimes gains a leading empty column. Parse from
+  // all of row 0, position- and format-independent.
+  const cells = (rows[0] || []).map((c) => (c || '').trim()).filter(Boolean);
+  const rowText = cells.join(' ');
+  const compact = rowText.replace(/\s+/g, '').toUpperCase();
+  const wd = WEEKDAYS.find((w) => compact.includes(w));
+  if (wd) day.weekday = wd.charAt(0) + wd.slice(1).toLowerCase();
+  const dm = rowText.match(/([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/);
+  if (dm) day.dateLabel = `${dm[1]} ${dm[2]}, ${dm[3]}`; // ordinal stripped
+  const tm = (cells[0] || '').match(/^[A-ZÅÄÖ]+\s*-\s*.+?\d{4}\s*-\s*(.+)$/);
+  if (tm) day.theme = tm[1].trim();
 
   const headerIdx = rows.findIndex((r) => r.some((c) => /BIG BARN/i.test(c || '')));
   if (headerIdx === -1) return day;
